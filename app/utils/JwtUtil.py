@@ -30,14 +30,11 @@ def generate_jwt(id: int, name: str, email: str) -> str:
     }
     return jwt.encode(payload, Config.secret_key, Config.algorithm)
 
-def authenticate_user(email: str, password: str) -> User | None:
+def authenticate_user(user: User, email: str, password: str):
     """验证用户凭据"""
-    user = UserMapper.get_user_by_email(email)
-    if not user:
-        return None
     if not verify_password(password, user.password):
-        return None
-    return user
+        return False
+    return True
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """验证密码"""
@@ -67,10 +64,10 @@ def login_required(f):
         # current_app.logger.debug(f"提取的Token: {token}")
 
         if not token:
-            return ErrorResponse(code=401, message='未提供有效的访问令牌')
+            return ErrorResponse(code=401, message='未提供有效的访问令牌').to_json()
         payload = verify_jwt(token)
         if 'error' in payload:
-            return ErrorResponse(code=401, message=payload['error'])
+            return ErrorResponse(code=401, message=payload['error']).to_json()
         request.user = User(id=payload['id'], name=payload['name'], email=payload['email'])
         return f(*args, **kwargs)
     return decorated_function
