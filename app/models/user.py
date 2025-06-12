@@ -1,8 +1,4 @@
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
-import decimal
-
-db = SQLAlchemy()
+from app.extensions import db
 
 class User(db.Model):
     __tablename__ = 'user'
@@ -22,3 +18,13 @@ class User(db.Model):
         db.Index('idx_user_create_at', create_at),
         db.Index('idx_user_update_at', update_at),
     )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'describe': self.describe,
+            'create_at': self.create_at,
+            'update_at': self.update_at,
+        }

@@ -1,7 +1,12 @@
-from flask import Flask, render_template
+from flask import render_template
 
-app = Flask(__name__)
+from app import create_app
+from app.extensions import db
 
+app = create_app()
+
+with app.app_context():
+    db.create_all()
 
 @app.route('/')
 def hello_world():

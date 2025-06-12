@@ -1,9 +1,4 @@
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
-import decimal
-
-db = SQLAlchemy()
-
+from app.extensions import db
 
 class Message(db.Model):
     __tablename__ = 'message'

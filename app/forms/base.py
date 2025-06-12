@@ -17,7 +17,7 @@ class BaseResponse:
         })
 
 class SuccessResponse(BaseResponse):
-    def __init__(self, data: Any = None):
+    def __init__(self, message: str = 'success',data: Any = None):
         super().__init__(data=data)
 
 class ErrorResponse(BaseResponse):

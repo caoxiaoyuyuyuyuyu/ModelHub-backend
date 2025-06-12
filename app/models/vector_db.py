@@ -1,8 +1,4 @@
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
-import decimal
-
-db = SQLAlchemy()
+from app.extensions import db
 
 class VectorDb(db.Model):
     __tablename__ = 'vector_db'
