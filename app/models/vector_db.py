@@ -1,9 +1,12 @@
+import decimal
+
 from app.extensions import db
 
 class VectorDb(db.Model):
     __tablename__ = 'vector_db'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    embedding_id = db.Column(db.Integer, db.ForeignKey('model_info.id'), nullable=False)
     name = db.Column(db.String(255), unique=True, nullable=False)
     document_similarity = db.Column(db.Numeric(5, 2), default=decimal.Decimal('0.70'), nullable=True)
     describe = db.Column(db.String(255), nullable=True)

@@ -1,4 +1,7 @@
+import decimal
+
 from app.extensions import db
+
 
 class ModelConfig(db.Model):
     __tablename__ = 'model_config'
@@ -7,7 +10,7 @@ class ModelConfig(db.Model):
     share_id = db.Column(db.String(255), unique=True, nullable=False)
     base_model_id = db.Column(db.Integer, db.ForeignKey('model_info.id'), nullable=False)
     name = db.Column(db.String(255), nullable=False)
-    temprature = db.Column(db.Numeric(10, 2), default=decimal.Decimal('0.70'), nullable=False)
+    temperature = db.Column(db.Numeric(10, 2), default=decimal.Decimal('0.70'), nullable=False)
     top_p = db.Column(db.Numeric(10, 2), default=decimal.Decimal('0.70'), nullable=False)
     top_k = db.Column(db.Integer, default=50, nullable=False)
     prompt = db.Column(db.Text, nullable=True)

@@ -1,5 +1,6 @@
 from app.extensions import db
 
+
 class Document(db.Model):
     __tablename__ = 'document'
     id = db.Column(db.Integer, primary_key=True)
