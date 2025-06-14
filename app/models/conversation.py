@@ -1,5 +1,6 @@
 from app.extensions import db
 
+
 class Conversation(db.Model):
     __tablename__ = 'conversation'
     id = db.Column(db.Integer, primary_key=True)
