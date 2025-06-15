@@ -16,9 +16,12 @@ class BaseResponse:
             'data': self.data
         })
 
+    def to_response(self):
+        return self.to_json()
+
 class SuccessResponse(BaseResponse):
-    def __init__(self, message: str = 'success',data: Any = None):
-        super().__init__(data=data)
+    def __init__(self, message: str = 'success', data: Any = None):
+        super().__init__(code=200, message=message, data=data)  # 显式传递所有参数
 
 class ErrorResponse(BaseResponse):
     def __init__(self, code, message):

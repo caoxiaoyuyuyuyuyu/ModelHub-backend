@@ -1,6 +1,6 @@
 import decimal
-
 from app.extensions import db
+from datetime import datetime
 
 class VectorDb(db.Model):
     __tablename__ = 'vector_db'
@@ -22,3 +22,14 @@ class VectorDb(db.Model):
         db.Index('idx_vector_db_create_at', create_at),
         db.Index('idx_user_id', user_id),
     )
+
+    def to_dict(self):
+        created_at_str = self.create_at.strftime('%Y-%m-%d %H:%M:%S') if self.create_at else None
+        updated_at_str = self.update_at.strftime('%Y-%m-%d %H:%M:%S') if self.update_at else None
+        return {
+            'id': self.id,
+            'name': self.name,
+            'describe': self.describe,
+            'created_at': created_at_str,
+            'updated_at': updated_at_str
+        }
