@@ -11,10 +11,9 @@ class BaseResponse:
 
     def to_json(self):
         return jsonify({
-            'code': self.code,
             'message': self.message,
             'data': self.data
-        })
+        }),  self.code
 
 class SuccessResponse(BaseResponse):
     def __init__(self, message: str = 'success',data: Any = None):

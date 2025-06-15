@@ -18,7 +18,7 @@ class UserService:
                 "token": token
             }
         except Exception as e:
-            raise
+            raise Exception({'code': 500, 'msg': "注册失败"+str(e)})
 
     @staticmethod
     def login(email, password):

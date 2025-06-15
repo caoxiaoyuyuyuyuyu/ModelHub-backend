@@ -24,8 +24,16 @@ def register():
         token = UserService.register(name, email, password, describe)
         return SuccessResponse("注册成功", token).to_json()
     except Exception as e:
-        # 捕获更具体的异常，例如自定义的业务异常
-        return ErrorResponse(getattr(e, 'code', 500), str(e)).to_json()
+        # 打印错误信息便于调试
+        print(f"Login error: {str(e)}")
+
+        # 直接使用异常中的错误信息
+        error_info = getattr(e, 'args', [{}])[0]
+        code = error_info.get('code', 500)
+        msg = error_info.get('msg', str(e))
+        # 打印错误信息到控制台
+        print(f"Error: {code} - {msg}")
+        return ErrorResponse(code, msg).to_json()
 
 @user_bp.route('/login', methods=['POST'])
 def login():
@@ -40,10 +48,19 @@ def login():
         return ErrorResponse(400, "缺少必要参数: email 或 password").to_json()
 
     try:
-        token = UserService.login(email, password)
-        return SuccessResponse("登录成功", token).to_json()
+        user = UserService.login(email, password)
+        return SuccessResponse("登录成功", user).to_json()
     except Exception as e:
-        return ErrorResponse(getattr(e, 'code', 500), str(e)).to_json()
+        # 打印错误信息便于调试
+        print(f"Login error: {str(e)}")
+
+        # 直接使用异常中的错误信息
+        error_info = getattr(e, 'args', [{}])[0]
+        code = error_info.get('code', 500)
+        msg = error_info.get('msg', str(e))
+        # 打印错误信息到控制台
+        print(f"Error: {code} - {msg}")
+        return ErrorResponse(code, msg).to_json()
 
 @user_bp.route('/test', methods=['GET'])
 @login_required
@@ -61,4 +78,13 @@ def get_user_info():
             return ErrorResponse(404, "用户不存在").to_json()
         return SuccessResponse("获取成功", user.to_dict()).to_json()
     except Exception as e:
-        return ErrorResponse(getattr(e, 'code', 500), str(e)).to_json()
+        # 打印错误信息便于调试
+        print(f"Login error: {str(e)}")
+
+        # 直接使用异常中的错误信息
+        error_info = getattr(e, 'args', [{}])[0]
+        code = error_info.get('code', 500)
+        msg = error_info.get('msg', str(e))
+        # 打印错误信息到控制台
+        print(f"Error: {code} - {msg}")
+        return ErrorResponse(code, msg).to_json()
