@@ -32,3 +32,21 @@ class ModelConfig(db.Model):
         db.Index('idx_model_config_user_id', user_id),
         db.Index('idx_model_config_vector_db_id', vector_db_id),
     )
+
+    def to_dict(self):
+        create_at_str = self.create_at.strftime('%Y-%m-%d %H:%M:%S') if self.create_at else None
+        update_at_str = self.update_at.strftime('%Y-%m-%d %H:%M:%S') if self.update_at else None
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'share_id': self.share_id,
+            'base_model_id': self.base_model_id,
+            'name': self.name,
+            'temperature': float(self.temperature),
+            'top_p': float(self.top_p),
+            'prompt': self.prompt,
+            'vector_db_id': self.vector_db_id,
+            'create_at': create_at_str,
+            'update_at': update_at_str,
+            'is_private': self.is_private
+        }
