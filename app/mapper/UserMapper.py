@@ -1,4 +1,4 @@
-from app.models.user import User
+from app.models.user import User, type_map
 from sqlalchemy.orm import Session
 
 from app.utils.JwtUtil import get_password_hash
@@ -51,3 +51,7 @@ class UserMapper:
     def get_user_by_email(email):
         user = User.query.filter_by(email=email).first()
         return user if user else None
+
+    @staticmethod
+    def get_enterprise_users():
+        return User.query.filter_by(type=2).all()

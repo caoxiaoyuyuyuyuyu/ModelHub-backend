@@ -39,3 +39,15 @@ class UserService:
     @staticmethod
     def get_user_by_email(user_email):
         return UserMapper.get_user_by_email(user_email)
+
+    @staticmethod
+    def get_enterprise_users():
+        try:
+            users = UserMapper.get_enterprise_users()
+            return [{
+                "id": user.id,
+                "name": user.name,
+            } for user in users]
+        except Exception as e:
+            raise e
+
