@@ -20,7 +20,7 @@ class ModelService:
                 )
             return model_info_list
         except Exception as e:
-            raise
+            raise Exception({'code': 500, 'msg': "获取info列表失败"+str(e)})
 
     # 根据id获取model_info
     @staticmethod
@@ -29,12 +29,12 @@ class ModelService:
             model_info = ModelMapper.get_model_info_by_id(info_id)
             return {
                 "id": model_info.id,
-                "model_name": model_info.name,
+                "model_name": model_info.model_name,
                 "describe": model_info.describe,
                 "type": model_info.type
             }
         except Exception as e:
-            raise
+            raise Exception({'code': 500, 'msg': "获取info失败"+str(e)})
 
     # 获取所有公开模型配置
     @staticmethod
@@ -60,7 +60,7 @@ class ModelService:
                 )
             return model_config_list
         except Exception as e:
-            raise
+            raise Exception({'code': 500, 'msg': "获取公共配置失败"+str(e)})
 
     @staticmethod
     def get_user_config(user_id):
@@ -85,7 +85,7 @@ class ModelService:
                 )
             return model_config_list
         except Exception as e:
-            raise
+            raise Exception({'code': 500, 'msg': "获取用户配置失败"+str(e)})
 
     @staticmethod
     def create_model_config(user_id, share_id, base_model_id, name, temperature, top_p, prompt, vector_db_id, is_private):
@@ -116,5 +116,45 @@ class ModelService:
             }
 
         except Exception as e:
-            raise
+            raise Exception({'code': 500, 'msg': "创建模型配置失败"+str(e)})
+
+    @staticmethod
+    def update_model_config(
+            model_config_id: int,
+            share_id: str | None,
+            base_model_id: int | None,
+            name: str | None,
+            temperature: float | None,
+            top_p: float | None,
+            prompt: str | None,
+            vector_db_id: int | None,
+            is_private: bool | None
+    ):
+        try:
+            config = ModelMapper.update_model_config_by_id(
+                model_config_id=model_config_id,
+                share_id=share_id,
+                base_model_id=base_model_id,
+                name=name,
+                temperature=temperature,
+                top_p=top_p,
+                prompt=prompt,
+                vector_db_id=vector_db_id,
+                is_private=is_private
+            )
+            return {
+                "id": config.id,
+                "name": config.name,
+                "share_id": config.share_id,
+                "base_model_id": config.base_model_id,
+                "temperature": config.temperature,
+                "top_p": config.top_p,
+                "prompt": config.prompt,
+                "vector_db_id": config.vector_db_id,
+                "create_at": config.create_at,
+                "update_at": config.update_at,
+                "is_private": config.is_private
+            }
+        except Exception as e:
+            raise Exception({'code': 500, 'msg': "更新模型配置失败"+str(e)})
 
