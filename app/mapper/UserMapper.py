@@ -28,6 +28,7 @@ class UserMapper:
         except Exception as e:
             db.session.rollback()
             raise Exception(f"创建用户失败: {str(e)}")
+
     @staticmethod
     def update_user_by_id(id: int, name: str | None, email: str | None, password: str | None, describe: str | None):
         try:

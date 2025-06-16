@@ -7,6 +7,8 @@ import logging
 import os
 import uuid
 import shutil
+import asyncio
+import time
 from llama_index.core import (
     SimpleDirectoryReader,
     VectorStoreIndex,
@@ -26,6 +28,181 @@ BASE_DOCS_DIR = "./data/vector_docs/"  # 文档存储基础目录
 
 class VectorService:
     # ... [保持 create_chroma_collection, create_vector_db 等方法不变] ...
+    @staticmethod
+    async def create_chroma_collection(vector_db_id):
+        """异步创建ChromaDB集合，带重试机制"""
+        client = get_chromadb_client()
+        if not client:
+            logger.error("无法获取 ChromaDB 客户端")
+            return False
+
+        collection_name = f"vector_db_{vector_db_id}"
+        retries = 0
+
+        while retries < MAX_RETRIES:
+            try:
+                # 检查集合是否存在
+                client.get_collection(name=collection_name)
+                logger.info(f"集合已存在: {collection_name}")
+                return True
+            except ValueError:
+                # 集合不存在，尝试创建
+                try:
+                    client.create_collection(name=collection_name)
+                    logger.info(f"成功创建集合: {collection_name}")
+                    return True
+                except Exception as e:
+                    retries += 1
+                    logger.warning(f"集合创建失败 (尝试 {retries}/{MAX_RETRIES}): {str(e)}")
+                    await asyncio.sleep(RETRY_DELAY)
+            except Exception as e:
+                retries += 1
+                logger.error(f"集合操作异常 (尝试 {retries}/{MAX_RETRIES}): {str(e)}")
+                await asyncio.sleep(RETRY_DELAY)
+
+        logger.error(f"无法创建集合 {collection_name}，达到最大重试次数")
+        return False
+
+    @staticmethod
+    async def create_vector_db(user_id, name, embedding_id, describe=None, document_similarity=0.7):
+        """创建向量数据库并确保集合存在"""
+        vector_db = VectorMapper.create_vector_db(user_id, name, embedding_id, describe, document_similarity)
+        if not vector_db or not vector_db.id:
+            logger.error("创建向量数据库记录失败")
+            return None
+
+        # 确保集合创建成功
+        success = await VectorService.create_chroma_collection(vector_db.id)
+        if not success:
+            logger.error(f"无法为向量数据库 {vector_db.id} 创建ChromaDB集合")
+
+        return vector_db
+
+    @staticmethod
+    def ensure_collection_exists(vector_db_id):
+        """同步确保集合存在"""
+        client = get_chromadb_client()
+        if not client:
+            logger.error("无法获取 ChromaDB 客户端")
+            return False
+
+        collection_name = f"vector_db_{vector_db_id}"
+
+        try:
+            # 快速检查是否存在
+            client.get_collection(name=collection_name)
+            return True
+        except ValueError:
+            # 不存在则尝试创建
+            try:
+                client.create_collection(name=collection_name)
+                logger.info(f"同步创建集合: {collection_name}")
+                return True
+            except Exception as e:
+                logger.error(f"同步创建集合失败: {str(e)}")
+                return False
+        except Exception as e:
+            logger.error(f"集合检查异常: {str(e)}")
+            return False
+
+    @staticmethod
+    def get_vector_db(vector_db_id):
+        vector_db = VectorMapper.get_vector_db(vector_db_id)
+        if vector_db:
+            vector_db_dict = vector_db.to_dict()
+            # 确保 model_configs 和 documents 字段包含前端所需的所有字段
+            model_configs = []
+            for config in vector_db.model_configs:
+                config_dict = {
+                    'id': config.id,
+                    'name': config.name,
+                    'describe': config.describe,
+                    'created_at': config.create_at.strftime('%Y-%m-%d %H:%M:%S') if config.create_at else None,
+                    'updated_at': config.update_at.strftime('%Y-%m-%d %H:%M:%S') if config.update_at else None
+                }
+                model_configs.append(config_dict)
+
+            documents = []
+            for doc in vector_db.documents:
+                doc_dict = {
+                    'id': doc.id,
+                    'name': doc.name,
+                    'original_name': doc.original_name,
+                    'type': doc.type,
+                    'size': doc.size,
+                    'save_path': doc.save_path,
+                    'describe': doc.describe,
+                    'upload_at': doc.upload_at.strftime('%Y-%m-%d %H:%M:%S') if doc.upload_at else None
+                }
+                documents.append(doc_dict)
+
+            vector_db_dict['model_configs'] = model_configs
+            vector_db_dict['documents'] = documents
+            return vector_db_dict
+        return None
+
+    @staticmethod
+    def update_vector_db(vector_db_id, name=None, embedding_id=None, describe=None, document_similarity=None):
+        return VectorMapper.update_vector_db(vector_db_id, name, embedding_id, describe, document_similarity)
+
+    @staticmethod
+    def delete_vector_db(vector_db_id):
+        result = VectorMapper.delete_vector_db(vector_db_id)
+        if result:
+            # 删除 ChromDB 集合
+            client = get_chromadb_client()
+            try:
+                client.delete_collection(name=f"vector_db_{vector_db_id}")
+                logger.info(f"已删除ChromaDB集合: vector_db_{vector_db_id}")
+            except ValueError:
+                logger.warning(f"ChromaDB 集合 {f'vector_db_{vector_db_id}'} 不存在，无需删除。")
+            except Exception as e:
+                logger.error(f"删除集合失败: {str(e)}", exc_info=True)
+        return result
+
+    @staticmethod
+    def insert_vectors(vector_db_id, vectors, metadatas=None, ids=None):
+        """插入向量到集合，确保集合存在"""
+        # 确保集合存在
+        if not VectorService.ensure_collection_exists(vector_db_id):
+            logger.error(f"无法确保集合存在: vector_db_{vector_db_id}")
+            return False
+
+        client = get_chromadb_client()
+        collection_name = f"vector_db_{vector_db_id}"
+
+        try:
+            collection = client.get_collection(name=collection_name)
+        except Exception as e:
+            logger.error(f"获取集合失败: {str(e)}")
+            return False
+
+        # 确保ids不为None且长度匹配
+        if ids is None:
+            ids = [f"id_{i}_{time.time()}" for i in range(len(vectors))]
+        elif len(ids) != len(vectors):
+            logger.error(f"ID数量({len(ids)})与向量数量({len(vectors)})不匹配")
+            return False
+
+        try:
+            # 分批次插入以避免过大请求
+            batch_size = 100
+            for i in range(0, len(vectors), batch_size):
+                batch_vectors = vectors[i:i + batch_size]
+                batch_metadatas = metadatas[i:i + batch_size] if metadatas else None
+                batch_ids = ids[i:i + batch_size]
+
+                collection.add(
+                    embeddings=batch_vectors,
+                    metadatas=batch_metadatas,
+                    ids=batch_ids
+                )
+
+            logger.info(f"成功插入{len(vectors)}个向量到集合{collection_name}")
+            return True
+        except Exception as e:
+            logger.error(f"向量插入失败: {str(e)}", exc_info=True)
+            return False
 
     @staticmethod
     def get_chroma_collection(vector_db_id):

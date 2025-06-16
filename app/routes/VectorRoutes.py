@@ -1,8 +1,11 @@
+# ModelHub-backend/app/routes/VectorRoutes.py
 from flask import Blueprint, request
 from app.forms.base import ErrorResponse, SuccessResponse
 from app.services.VectorService import VectorService
 from app.utils.JwtUtil import login_required
-from flask import Blueprint, request, jsonify  # 确保导入 jsonify
+from flask import jsonify  # 确保导入 jsonify
+from app.models import Document
+import asyncio  # 新增导入
 
 vector_bp = Blueprint('vector', __name__, url_prefix='/vector')
 
@@ -35,7 +38,6 @@ def create_vector_db():
     except ValueError:
          return ErrorResponse(400, f"embedding_id 必须为有效的整数，当前传入的值为: {embedding_id_str}").to_json()
 
-
     # 处理 document_similarity
     document_similarity_str = data.get('document_similarity')
     if document_similarity_str:
@@ -47,17 +49,25 @@ def create_vector_db():
         document_similarity = 0.7
 
     try:
-        vector_db = VectorService.create_vector_db(
+        # 异步操作需要在事件循环中运行
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        vector_db = loop.run_until_complete(VectorService.create_vector_db(
             user_id=request.user.id,
             name=data.get('name'),
-            embedding_id=data.get('embedding_id'),
+            embedding_id=embedding_id,
             describe=data.get('describe'),
             document_similarity=document_similarity
-        )
-        return SuccessResponse(
-            "创建成功",
-            vector_db.to_dict() if hasattr(vector_db, 'to_dict') else vector_db
-        ).to_json()
+        ))
+        loop.close()
+
+        if vector_db:
+            return SuccessResponse(
+                "创建成功",
+                vector_db.to_dict() if hasattr(vector_db, 'to_dict') else vector_db
+            ).to_json()
+        else:
+            return ErrorResponse(500, "创建向量数据库失败").to_json()
     except Exception as e:
         return handle_exception(e)
 
@@ -99,10 +109,18 @@ def update_vector_db(vector_db_id):
             document_similarity=document_similarity
         )
         if vector_db:
-            return SuccessResponse(
-                "更新成功",
-                vector_db.to_dict() if hasattr(vector_db, 'to_dict') else vector_db
-            ).to_json()
+            if isinstance(vector_db, dict):
+                return SuccessResponse(
+                    "更新成功",
+                    vector_db
+                ).to_json()
+            elif hasattr(vector_db, 'to_dict'):
+                return SuccessResponse(
+                    "更新成功",
+                    vector_db.to_dict()
+                ).to_json()
+            else:
+                return ErrorResponse(500, "返回对象格式错误").to_json()
         return ErrorResponse(404, "未找到该向量数据库").to_json()
     except Exception as e:
         return handle_exception(e)
@@ -134,5 +152,19 @@ def upload_file():
     try:
         VectorService.upload_file(vector_db_id, file)
         return SuccessResponse("文件上传成功").to_json()
+    except Exception as e:
+        return handle_exception(e)
+
+@vector_bp.route('/document/<int:document_id>', methods=['GET'])
+@login_required
+def get_document(document_id):
+    try:
+        document = Document.query.get(document_id)
+        if document:
+            return SuccessResponse(
+                "查询成功",
+                document.to_dict()
+            ).to_json()
+        return ErrorResponse(404, "未找到该文件").to_json()
     except Exception as e:
         return handle_exception(e)
