@@ -1,4 +1,5 @@
 from app.mapper import ModelMapper
+from app.mapper import UserMapper
 
 
 class ModelService:
@@ -43,19 +44,20 @@ class ModelService:
             config_list = ModelMapper.get_all_public_model_config()
             model_config_list = []
             for config in config_list:
+                user_id = config.user_id
+                user = UserMapper.get_user_by_id(user_id)
+
+                base_model_id = config.base_model_id
+                base_model = ModelMapper.get_model_info_by_id(base_model_id)
+
                 model_config_list.append(
                     {
                         "id": config.id,
                         "name": config.name,
-                        "share_id": config.share_id,
-                        "base_model_id": config.base_model_id,
-                        "temperature": config.temperature,
-                        "top_p": config.top_p,
-                        "prompt": config.prompt,
-                        "vector_db_id": config.vector_db_id,
-                        "create_at": config.create_at,
-                        "update_at": config.update_at,
-                        "is_private": config.is_private
+                        "author": user.name,
+                        "base_model_name": base_model.model_name,
+                        "describe": config.describe,
+                        "update_at": config.update_at
                     }
                 )
             return model_config_list
@@ -68,19 +70,19 @@ class ModelService:
             config_list = ModelMapper.get_model_config_by_user_id(user_id)
             model_config_list = []
             for config in config_list:
+                user = UserMapper.get_user_by_id(user_id)
+
+                base_model_id = config.base_model_id
+                base_model = ModelMapper.get_model_info_by_id(base_model_id)
+
                 model_config_list.append(
                     {
                         "id": config.id,
                         "name": config.name,
-                        "share_id": config.share_id,
-                        "base_model_id": config.base_model_id,
-                        "temperature": config.temperature,
-                        "top_p": config.top_p,
-                        "prompt": config.prompt,
-                        "vector_db_id": config.vector_db_id,
-                        "create_at": config.create_at,
-                        "update_at": config.update_at,
-                        "is_private": config.is_private
+                        "author": user.name,
+                        "base_model_name": base_model.model_name,
+                        "describe": config.describe,
+                        "update_at": config.update_at
                     }
                 )
             return model_config_list
@@ -88,7 +90,7 @@ class ModelService:
             raise Exception({'code': 500, 'msg': "获取用户配置失败"+str(e)})
 
     @staticmethod
-    def create_model_config(user_id, share_id, base_model_id, name, temperature, top_p, prompt, vector_db_id, is_private):
+    def create_model_config(user_id, share_id, base_model_id, name, temperature, top_p, prompt, vector_db_id, is_private, describe):
         try:
             config = ModelMapper.create_model_config(
                 user_id=user_id,
@@ -99,7 +101,8 @@ class ModelService:
                 top_p=top_p,
                 prompt=prompt,
                 vector_db_id=vector_db_id,
-                is_private=is_private
+                is_private=is_private,
+                describe=describe
             )
             return {
                 "id": config.id,
@@ -112,7 +115,8 @@ class ModelService:
                 "vector_db_id": config.vector_db_id,
                 "create_at": config.create_at,
                 "update_at": config.update_at,
-                "is_private": config.is_private
+                "is_private": config.is_private,
+                "describe": config.describe
             }
 
         except Exception as e:
@@ -128,7 +132,8 @@ class ModelService:
             top_p: float | None,
             prompt: str | None,
             vector_db_id: int | None,
-            is_private: bool | None
+            is_private: bool | None,
+            describe: str | None
     ):
         try:
             config = ModelMapper.update_model_config_by_id(
@@ -140,7 +145,8 @@ class ModelService:
                 top_p=top_p,
                 prompt=prompt,
                 vector_db_id=vector_db_id,
-                is_private=is_private
+                is_private=is_private,
+                describe=describe
             )
             return {
                 "id": config.id,
@@ -153,7 +159,8 @@ class ModelService:
                 "vector_db_id": config.vector_db_id,
                 "create_at": config.create_at,
                 "update_at": config.update_at,
-                "is_private": config.is_private
+                "is_private": config.is_private,
+                "describe": config.describe
             }
         except Exception as e:
             raise Exception({'code': 500, 'msg': "更新模型配置失败"+str(e)})

@@ -23,6 +23,7 @@ class ModelConfig(db.Model):
         nullable=False
     )
     is_private = db.Column(db.Boolean, default=False, nullable=False)
+    describe = db.Column(db.String(255), nullable=True)
 
     user = db.relationship('User', backref=db.backref('model_configs', lazy=True))
     base_model = db.relationship('ModelInfo', backref=db.backref('model_configs', lazy=True))

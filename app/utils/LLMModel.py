@@ -23,6 +23,7 @@ class ChatGLM(CustomLLM):
     base_url: str = Field(description="base URL")
     top_p: float = Field(default=0.8, description="控制生成文本的多样性，值越大生成的文本越多样。")
     temperature: float = Field(default=0.7, description="控制生成文本的随机性，值越大生成的文本越随机。")
+    system_prompt: str = Field(description="模型的系统提示")
     reuse_client: bool = Field(default=True, description=(
         "在多个请求间复用client。当处理大量的异步API请求时，设置该选项为FALSE可以提高稳定性。"
     ),
@@ -35,6 +36,7 @@ class ChatGLM(CustomLLM):
             model: str,
             api_key: Optional[str],
             base_url: Optional[str],
+            system_prompt: str,
             top_p: Optional[float] = 0.8,
             temperature: Optional[float] = 0.7,
             reuse_client: bool = True,
@@ -47,6 +49,7 @@ class ChatGLM(CustomLLM):
             reuse_client=reuse_client,
             top_p=top_p,
             temperature=temperature,
+            system_prompt=system_prompt,
             **kwargs,
         )
         self._client = None
@@ -86,7 +89,7 @@ class ChatGLM(CustomLLM):
             messages=messages,
             stream=stream,
             top_p=self.top_p,
-            temperature=self.temperature
+            temperature=self.temperature,
         )
         return response
 
@@ -176,7 +179,8 @@ if __name__ == "__main__":
     test_llm = ChatGLM(
         model="qwen-plus",
         base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-        api_key="sk-1d8575bdb4ab4b64abde2da910ef578b"
+        api_key="sk-1d8575bdb4ab4b64abde2da910ef578b",
+        system_prompt="你是一个高中女孩"
     )
     # messages = [ChatMessage(content="讲个简短的笑话", role=MessageRole("user"))]
     # res = test_llm.chat(messages) # 测试传入列表
