@@ -42,7 +42,8 @@ class ModelMapper:
             top_p: float,
             prompt: str | None,
             vector_db_id: int | None,
-            is_private: bool
+            is_private: bool,
+            describe: str | None
     ):
         try:
             # 检查存在用户
@@ -61,7 +62,8 @@ class ModelMapper:
                 top_p=top_p,
                 prompt=prompt,
                 vector_db_id=vector_db_id,
-                is_private=is_private
+                is_private=is_private,
+                describe=describe
             )
             db.session.add(model_config)
             db.session.commit()
@@ -86,7 +88,8 @@ class ModelMapper:
             top_p: float | None,
             prompt: str | None,
             vector_db_id: int | None,
-            is_private: bool | None
+            is_private: bool | None,
+            describe: str | None
     ):
         try:
             model_config = ModelMapper.get_model_config_by_id(model_config_id)
@@ -109,6 +112,8 @@ class ModelMapper:
                 model_config.vector_db_id = vector_db_id
             if is_private:
                 model_config.is_private = is_private
+            if describe:
+                model_config.describe = describe
             db.session.commit()
             db.session.refresh(model_config)
             return model_config

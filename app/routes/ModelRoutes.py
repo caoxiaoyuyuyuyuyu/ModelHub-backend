@@ -57,8 +57,9 @@ def create_model_config():
     prompt = data.get("prompt")
     vector_db_id = data.get("vector_db_id")
     is_private = data.get("is_private")
+    describe = data.get("describe")
 
-    if not all([user_id, share_id, base_model_id, name, temperature, top_p, is_private]):
+    if not all([user_id, share_id, base_model_id, name, temperature, top_p]):
         return ErrorResponse(400, "缺少必要参数").to_json()
 
     try:
@@ -71,7 +72,8 @@ def create_model_config():
             top_p,
             prompt,
             vector_db_id,
-            is_private
+            is_private,
+            describe
         )
         return SuccessResponse("创建模型配置成功", config).to_json()
     except Exception as e:
@@ -93,6 +95,7 @@ def update_model_config():
     prompt = data.get("prompt")
     vector_db_id = data.get("vector_db_id")
     is_private = data.get("is_private")
+    describe = data.get("describe")
 
     if not model_config_id:
         return ErrorResponse(400, "更新配置id不能为空").to_json()
@@ -107,7 +110,8 @@ def update_model_config():
             top_p=top_p,
             prompt=prompt,
             vector_db_id=vector_db_id,
-            is_private=is_private
+            is_private=is_private,
+            describe=describe
         )
         return SuccessResponse("模型配置更新成功", config).to_json()
     except Exception as e:
