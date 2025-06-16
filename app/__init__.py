@@ -5,7 +5,6 @@ from flask_cors import CORS
 from .extensions import db
 from .config import Config
 
-
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
@@ -21,8 +20,10 @@ def create_app(config_class=Config):
     # 注册蓝图
     from .routes import user_bp, chat_bp
     from .routes import model_bp
+    from .routes import vector_bp
 
     app.register_blueprint(user_bp)
+    app.register_blueprint(vector_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(model_bp)
 

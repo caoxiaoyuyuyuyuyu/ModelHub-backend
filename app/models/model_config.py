@@ -13,7 +13,7 @@ class ModelConfig(db.Model):
     temperature = db.Column(db.Numeric(10, 2), default=decimal.Decimal('0.70'), nullable=False)
     top_p = db.Column(db.Numeric(10, 2), default=decimal.Decimal('0.70'), nullable=False)
     prompt = db.Column(db.Text, nullable=True)
-    vector_db_id = db.Column(db.Integer, db.ForeignKey('vector_db.id'))
+    vector_db_id = db.Column(db.Integer, db.ForeignKey('vector_db.id'), nullable=False)
     create_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     update_at = db.Column(
         db.DateTime,
