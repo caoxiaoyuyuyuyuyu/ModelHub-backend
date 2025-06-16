@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app.forms.base import ErrorResponse, SuccessResponse
 from app.services import ModelService
+from app.utils.JwtUtil import login_required
 from app.utils.exception_util import error_500_print
 
 model_bp = Blueprint('model', __name__, url_prefix='/model')
@@ -28,27 +29,40 @@ def get_info(info_id):
 def get_public_config():
     try:
         config_list = ModelService.get_public_config()
-        return SuccessResponse("获取model_info成功", config_list).to_json()
+        return SuccessResponse("获取公共模型配置成功", config_list).to_json()
     except Exception as e:
         return error_500_print("Model error", e)
 
 
 @model_bp.route('/modelconfig/getuser/<int:user_id>', methods=['GET'])
-def get_user_config(user_id):
+def get_user_config_by_id(user_id):
     try:
-        config_list = ModelService.get_user_config(user_id)
-        return SuccessResponse("获取model_info成功", config_list).to_json()
+        config_list = ModelService.get_user_config_by_id(user_id)
+        return SuccessResponse("获取用户模型配置成功", config_list).to_json()
+    except Exception as e:
+        return error_500_print("Model error", e)
+
+
+@model_bp.route('/modelconfig/getuser', methods=['GET'])
+@login_required
+def get_user_config():
+    try:
+        user = request.user
+        config_list = ModelService.get_user_config(user)
+        return SuccessResponse("获取用户模型配置成功", config_list).to_json()
     except Exception as e:
         return error_500_print("Model error", e)
 
 
 @model_bp.route('/modelconfig/create', methods=['POST'])
+@login_required
 def create_model_config():
+    user = request.user
     data = request.get_json()
     if not data:
         return ErrorResponse(400, "请求数据不能为空").to_json()
 
-    user_id = data.get("user_id")
+    user_id = user.id
     share_id = data.get("share_id")
     base_model_id = data.get("base_model_id")
     name = data.get("name")
