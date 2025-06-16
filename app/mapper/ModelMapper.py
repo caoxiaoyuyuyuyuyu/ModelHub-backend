@@ -90,6 +90,9 @@ class ModelMapper:
     ):
         try:
             model_config = ModelMapper.get_model_config_by_id(model_config_id)
+            if not model_config:
+                raise ValueError("model config not exist")
+
             if share_id:
                 model_config.share_id = share_id
             if base_model_id:
@@ -106,9 +109,9 @@ class ModelMapper:
                 model_config.vector_db_id = vector_db_id
             if is_private:
                 model_config.is_private = is_private
-            db.commit()
-            db.refresh(model_config)
+            db.session.commit()
+            db.session.refresh(model_config)
             return model_config
-        except:
-            db.rollback()
-            raise Exception("更新模型配置失败")
+        except Exception as e:
+            db.session.rollback()
+            raise Exception("更新模型配置失败"+str(e))

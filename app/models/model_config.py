@@ -1,6 +1,7 @@
 import decimal
 
 from app.extensions import db
+from app.models.vector_db import VectorDb
 
 
 class ModelConfig(db.Model):
