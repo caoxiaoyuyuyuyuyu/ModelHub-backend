@@ -1,5 +1,6 @@
 from app.mapper import ModelMapper
 from app.mapper import UserMapper
+from flask import request
 
 
 class ModelService:
@@ -65,7 +66,7 @@ class ModelService:
             raise Exception({'code': 500, 'msg': "获取公共配置失败"+str(e)})
 
     @staticmethod
-    def get_user_config(user_id):
+    def get_user_config_by_id(user_id):
         try:
             config_list = ModelMapper.get_model_config_by_user_id(user_id)
             model_config_list = []
@@ -88,6 +89,33 @@ class ModelService:
             return model_config_list
         except Exception as e:
             raise Exception({'code': 500, 'msg': "获取用户配置失败"+str(e)})
+
+    @staticmethod
+    def get_user_config(user):
+        try:
+            user_id = user.id
+            config_list = ModelMapper.get_model_config_by_user_id(user_id)
+            model_config_list = []
+            for config in config_list:
+                model_config_list.append(
+                    {
+                        "id": config.id,
+                        "name": config.name,
+                        "describe": config.describe,
+                        "base_model_id": config.base_model_id,
+                        "temperature": config.temperature,
+                        "top_p": config.top_p,
+                        "prompt": config.prompt,
+                        "vector_db_id": config.vector_db_id,
+                        "created_at": config.create_at,
+                        "updated_at": config.update_at,
+                        "is_private": config.is_private
+                    }
+                )
+            return model_config_list
+        except Exception as e:
+            raise Exception({'code': 500, 'msg': "获取用户配置失败"+str(e)})
+
 
     @staticmethod
     def create_model_config(user_id, share_id, base_model_id, name, temperature, top_p, prompt, vector_db_id, is_private, describe):
