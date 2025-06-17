@@ -14,6 +14,7 @@ class ModelConfig(db.Model):
     top_p = db.Column(db.Numeric(10, 2), default=decimal.Decimal('0.70'), nullable=False)
     #top_k = db.Column(db.Integer, default=50, nullable=False)
     prompt = db.Column(db.Text, nullable=True)
+    describe = db.Column(db.String(255), nullable=True)
     vector_db_id = db.Column(db.Integer, db.ForeignKey('vector_db.id'), nullable=False)
     create_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     update_at = db.Column(
@@ -45,6 +46,7 @@ class ModelConfig(db.Model):
             'temperature': float(self.temperature),
             'top_p': float(self.top_p),
             'prompt': self.prompt,
+            'describe': self.describe,
             'vector_db_id': self.vector_db_id,
             'create_at': create_at_str,
             'update_at': update_at_str,

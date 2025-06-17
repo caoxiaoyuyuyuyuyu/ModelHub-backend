@@ -3,6 +3,7 @@ from app.mapper import VectorMapper
 from app.utils.chromadb_utils import get_chromadb_client
 from app.utils.EmbbedingModel import ChatEmbeddings
 from app.utils.file_utils import save_uploaded_file
+from app.models.vector_db import VectorDb
 import logging
 import os
 import uuid
@@ -285,6 +286,24 @@ class VectorService:
             logger.error(f"向量处理失败: {str(e)}", exc_info=True)
             return False
 
+    @staticmethod
+    def get_user_vector_dbs(user_id):
+        try:
+            vector_dbs = VectorDb.query.filter_by(user_id=user_id).all()
+            vector_db_list = []
+            for vector_db in vector_dbs:
+                vector_db_dict = {
+                    'id': vector_db.id,
+                    'name': vector_db.name,
+                    'describe': vector_db.describe,
+                    'created_at': vector_db.create_at.strftime('%Y-%m-%d %H:%M:%S') if vector_db.create_at else None,
+                    'updated_at': vector_db.update_at.strftime('%Y-%m-%d %H:%M:%S') if vector_db.update_at else None
+                }
+                vector_db_list.append(vector_db_dict)
+            return vector_db_list
+        except Exception as e:
+            logger.error(f"获取用户向量数据库列表失败: {str(e)}")
+            return []
     @staticmethod
     def query_vectors(vector_db_id, query_text, n_results=10):
         """查询向量数据库 (使用 LlamaIndex)"""
