@@ -5,14 +5,15 @@ from flask_cors import CORS
 from .extensions import db
 from .config import Config
 
+
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
     CORS(app, supports_credentials=True, origins=["http://localhost:5173"],
-    allow_headers=["Authorization", "Content-Type"],
-    methods=["GET", "POST", "OPTIONS"],
-    expose_headers=["Authorization"])
+         allow_headers=["Authorization", "Content-Type"],
+         methods=["GET", "POST", "OPTIONS"],
+         expose_headers=["Authorization"])
 
     # 初始化扩展
     db.init_app(app)
