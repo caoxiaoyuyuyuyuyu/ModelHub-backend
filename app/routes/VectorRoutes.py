@@ -155,6 +155,19 @@ def upload_file():
     except Exception as e:
         return handle_exception(e)
 
+@vector_bp.route('/list', methods=['GET'])
+@login_required
+def get_user_vector_db_list():
+    try:
+        user_id = request.user.id
+        vector_db_list = VectorService.get_user_vector_dbs(user_id)
+        return SuccessResponse(
+            "查询成功",
+            vector_db_list
+        ).to_json()
+    except Exception as e:
+        return handle_exception(e)
+
 @vector_bp.route('/document/<int:document_id>', methods=['GET'])
 @login_required
 def get_document(document_id):
