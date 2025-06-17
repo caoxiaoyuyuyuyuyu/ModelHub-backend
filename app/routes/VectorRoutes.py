@@ -27,7 +27,7 @@ def handle_exception(e, default_error_code=500):
 @vector_bp.route('/create', methods=['POST'])
 @login_required
 def create_vector_db():
-    data = request.form
+    data = request.get_json()
     if not data or "name" not in data or "embedding_id" not in data:
         return ErrorResponse(400, "请求参数错误").to_json()
 

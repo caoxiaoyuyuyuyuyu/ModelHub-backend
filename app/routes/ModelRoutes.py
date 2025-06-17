@@ -100,7 +100,7 @@ def update_model_config():
     if not data:
         return ErrorResponse(400, "请求数据不能为空").to_json()
 
-    model_config_id = data.get("model_config_id")
+    model_config_id = data.get("id")
     share_id = data.get("share_id")
     base_model_id = data.get("base_model_id")
     name = data.get("name")
