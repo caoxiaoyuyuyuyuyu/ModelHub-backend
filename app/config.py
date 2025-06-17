@@ -44,5 +44,8 @@ class Config:
     EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY", "sk-1d8575bdb4ab4b64abde2da910ef578b")
 
     # ChromaDB 配置
-    CHROMA_SERVER_HOST = os.getenv("CHROMA_SERVER_HOST", "localhost")
-    CHROMA_SERVER_PORT = os.getenv("CHROMA_SERVER_PORT", "8000")
+    CHROMA_SERVER_HOST = "localhost"  # 如果使用 Docker 改为 "host.docker.internal"
+    CHROMA_SERVER_PORT = 8000
+
+    # 添加 API 路径配置
+    CHROMA_API_PATH = "/api/v1"  # 新版本 ChromaDB 使用 /api/v1
