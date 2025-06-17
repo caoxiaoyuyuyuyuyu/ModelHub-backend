@@ -150,8 +150,13 @@ def upload_file():
         return ErrorResponse(400, "未提供向量数据库ID").to_json()
 
     try:
-        VectorService.upload_file(vector_db_id, file)
-        return SuccessResponse("文件上传成功").to_json()
+        # 传递当前登录用户ID
+        document_id = VectorService.upload_file(
+            vector_db_id=vector_db_id,
+            file=file,
+            user_id=request.user.id  # 添加用户ID
+        )
+        return SuccessResponse("文件上传成功", data={"document_id": document_id}).to_json()
     except Exception as e:
         return handle_exception(e)
 

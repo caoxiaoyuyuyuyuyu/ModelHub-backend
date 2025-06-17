@@ -4,6 +4,11 @@ from app.utils.chromadb_utils import get_chromadb_client
 from app.utils.EmbbedingModel import ChatEmbeddings
 from app.utils.file_utils import save_uploaded_file
 from app.models.vector_db import VectorDb
+from app.models.document import Document
+from app.extensions import db
+from chromadb import HttpClient
+import chromadb.errors  # 新增导入
+from app.routes.VectorRoutes import request  # 导入 request 对象
 import logging
 import os
 import uuid
@@ -31,7 +36,6 @@ class VectorService:
     # ... [保持 create_chroma_collection, create_vector_db 等方法不变] ...
     @staticmethod
     async def create_chroma_collection(vector_db_id):
-        """异步创建ChromaDB集合，带重试机制"""
         client = get_chromadb_client()
         if not client:
             logger.error("无法获取 ChromaDB 客户端")
@@ -42,20 +46,19 @@ class VectorService:
 
         while retries < MAX_RETRIES:
             try:
-                # 检查集合是否存在
-                client.get_collection(name=collection_name)
-                logger.info(f"集合已存在: {collection_name}")
+                # 尝试创建集合
+                client.create_collection(name=collection_name)
+                logger.info(f"成功创建集合: {collection_name}")
                 return True
-            except ValueError:
-                # 集合不存在，尝试创建
-                try:
-                    client.create_collection(name=collection_name)
-                    logger.info(f"成功创建集合: {collection_name}")
+            except chromadb.errors.ChromaError as e:
+                # 如果集合已存在，则忽略错误
+                if "already exists" in str(e).lower():
+                    logger.info(f"集合已存在: {collection_name}")
                     return True
-                except Exception as e:
-                    retries += 1
-                    logger.warning(f"集合创建失败 (尝试 {retries}/{MAX_RETRIES}): {str(e)}")
-                    await asyncio.sleep(RETRY_DELAY)
+
+                retries += 1
+                logger.warning(f"集合创建失败 (尝试 {retries}/{MAX_RETRIES}): {str(e)}")
+                await asyncio.sleep(RETRY_DELAY)
             except Exception as e:
                 retries += 1
                 logger.error(f"集合操作异常 (尝试 {retries}/{MAX_RETRIES}): {str(e)}")
@@ -63,7 +66,6 @@ class VectorService:
 
         logger.error(f"无法创建集合 {collection_name}，达到最大重试次数")
         return False
-
     @staticmethod
     async def create_vector_db(user_id, name, embedding_id, describe=None, document_similarity=0.7):
         """创建向量数据库并确保集合存在"""
@@ -81,20 +83,16 @@ class VectorService:
 
     @staticmethod
     def ensure_collection_exists(vector_db_id):
-        """同步确保集合存在"""
         client = get_chromadb_client()
         if not client:
             logger.error("无法获取 ChromaDB 客户端")
             return False
 
         collection_name = f"vector_db_{vector_db_id}"
-
         try:
-            # 快速检查是否存在
             client.get_collection(name=collection_name)
             return True
-        except ValueError:
-            # 不存在则尝试创建
+        except (ValueError, chromadb.errors.CollectionNotFound):  # 修改异常类型
             try:
                 client.create_collection(name=collection_name)
                 logger.info(f"同步创建集合: {collection_name}")
@@ -124,7 +122,7 @@ class VectorService:
                 model_configs.append(config_dict)
 
             documents = []
-            for doc in vector_db.documents:
+            for doc in vector_db.stored_documents:
                 doc_dict = {
                     'id': doc.id,
                     'name': doc.name,
@@ -222,21 +220,22 @@ class VectorService:
             return None
 
     @staticmethod
-    def upload_file(vector_db_id, file):
+    def upload_file(vector_db_id, file, user_id):  # 添加 user_id 参数
         """上传文件并处理为向量存储 (使用 LlamaIndex + ChromaDB)"""
-        logger.info(f"开始上传文件到向量数据库 {vector_db_id}: {getattr(file, 'filename', 'unknown')}")
+        filename = getattr(file, 'filename', 'unknown')
+        logger.info(f"开始上传文件到向量数据库 {vector_db_id}: {filename}")
 
         # 1. 保存文件到指定目录
         vector_db_dir = os.path.join(BASE_DOCS_DIR, f"vector_db_{vector_db_id}")
-        if not os.path.exists(vector_db_dir):
-            os.makedirs(vector_db_dir)
+        os.makedirs(vector_db_dir, exist_ok=True)  # 确保目录存在
+
+        # 生成唯一文件名
+        unique_filename = f"{uuid.uuid4().hex}_{filename}"
+        save_path = os.path.join(vector_db_dir, unique_filename)
+        file_saved = False  # 文件保存状态标志
 
         try:
             # 保存上传的文件
-            filename = getattr(file, 'filename', 'unknown')
-            unique_filename = f"{uuid.uuid4().hex}_{filename}"
-            save_path = os.path.join(vector_db_dir, unique_filename)
-
             if hasattr(file, 'save'):
                 file.save(save_path)
             elif hasattr(file, 'write'):
@@ -246,18 +245,15 @@ class VectorService:
                 with open(save_path, 'wb') as f:
                     shutil.copyfileobj(file, f)
 
+            file_saved = True  # 标记文件已成功保存
             logger.info(f"文件保存成功: {save_path}")
-        except Exception as e:
-            logger.error(f"文件保存失败: {str(e)}")
-            return False
 
-        # 2. 使用 LlamaIndex 处理文件
-        try:
+            # 2. 使用 LlamaIndex 处理文件
             # 获取 ChromaDB 集合
             chroma_collection = VectorService.get_chroma_collection(vector_db_id)
             if not chroma_collection:
                 logger.error("无法获取 ChromaDB 集合")
-                return False
+                raise Exception("无法获取 ChromaDB 集合")
 
             # 创建向量存储
             vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
@@ -272,6 +268,7 @@ class VectorService:
 
             # 读取并处理文件
             documents = SimpleDirectoryReader(input_files=[save_path]).load_data()
+            logger.info(f"成功加载 {len(documents)} 个文档片段")
 
             # 创建索引并存储
             index = VectorStoreIndex.from_documents(
@@ -281,11 +278,41 @@ class VectorService:
             )
 
             logger.info(f"文件处理成功: {filename}，添加了 {len(documents)} 个文档片段")
-            return True
-        except Exception as e:
-            logger.error(f"向量处理失败: {str(e)}", exc_info=True)
-            return False
 
+            # 3. 保存文档信息到数据库
+            file_extension = os.path.splitext(filename)[1]
+            file_type = file_extension[1:] if file_extension else "unknown"
+
+            document = Document(
+                user_id=user_id,  # 使用传入的用户ID
+                vector_db_id=vector_db_id,
+                name=unique_filename,
+                original_name=filename,
+                type=file_type,
+                size=os.path.getsize(save_path),
+                save_path=save_path,
+                describe=None
+            )
+
+            db.session.add(document)
+            db.session.commit()
+            logger.info(f"文件信息已保存到 document 数据库，ID: {document.id}")
+            return document.id  # 返回文档ID
+
+        except Exception as e:
+            logger.error(f"处理过程中发生错误: {str(e)}", exc_info=True)
+
+            # 错误处理：清理已保存的文件
+            if file_saved and os.path.exists(save_path):
+                try:
+                    os.remove(save_path)
+                    logger.info(f"已删除文件: {save_path}")
+                except Exception as delete_error:
+                    logger.error(f"删除文件失败: {str(delete_error)}")
+
+            # 回滚数据库操作
+            db.session.rollback()
+            raise Exception(f"文件处理失败: {str(e)}")
     @staticmethod
     def get_user_vector_dbs(user_id):
         try:

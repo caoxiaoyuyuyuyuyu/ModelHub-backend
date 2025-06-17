@@ -13,7 +13,7 @@ class Document(db.Model):
     describe = db.Column(db.String(255), nullable=True)
     upload_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     user = db.relationship('User', backref=db.backref('documents', lazy=True))
-    vector_db = db.relationship('VectorDb', backref=db.backref('documents', lazy=True))
+    vector_db = db.relationship('VectorDb', back_populates='stored_documents')
     __table_args__ = (
         db.Index('idx_document_type', type),
         db.Index('idx_document_upload_at', upload_at),
