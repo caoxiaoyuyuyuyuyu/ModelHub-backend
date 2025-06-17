@@ -1,6 +1,7 @@
 import decimal
 
 from app.extensions import db
+from app.models.vector_db import VectorDb
 
 
 class ModelConfig(db.Model):
@@ -12,9 +13,8 @@ class ModelConfig(db.Model):
     name = db.Column(db.String(255), nullable=False)
     temperature = db.Column(db.Numeric(10, 2), default=decimal.Decimal('0.70'), nullable=False)
     top_p = db.Column(db.Numeric(10, 2), default=decimal.Decimal('0.70'), nullable=False)
-    top_k = db.Column(db.Integer, default=50, nullable=False)
     prompt = db.Column(db.Text, nullable=True)
-    vector_db_id = db.Column(db.Integer, db.ForeignKey('vector_db.id'), nullable=False)
+    vector_db_id = db.Column(db.Integer, db.ForeignKey('vector_db.id'))
     create_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     update_at = db.Column(
         db.DateTime,
@@ -23,6 +23,7 @@ class ModelConfig(db.Model):
         nullable=False
     )
     is_private = db.Column(db.Boolean, default=False, nullable=False)
+    describe = db.Column(db.String(255), nullable=True)
 
     user = db.relationship('User', backref=db.backref('model_configs', lazy=True))
     base_model = db.relationship('ModelInfo', backref=db.backref('model_configs', lazy=True))
