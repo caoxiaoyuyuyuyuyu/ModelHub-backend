@@ -55,7 +55,6 @@ class ChatMapper:
             # 保存到redis中
             self.redis_client.rpush(key, str(message))
             return {
-                "conversation_id": message_db.conversation_id,
                 "role": message_db.role,
                 "content": message_db.content
             }

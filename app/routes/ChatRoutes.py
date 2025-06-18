@@ -53,9 +53,7 @@ def chat() -> str:
         mes = ChatService.saveMessage(int(conversation_id), "user", str(message)) # 问题
         res = ChatService.chat(int(conversation_id), int(model_config_id), message)  # 回答
         return SuccessResponse("对话成功！",
-                               {"conversation_id": conversation_id,
-                                "mes": mes,
-                                "res": res}).to_json()
+                               {"conversation_id": conversation_id, "response": res}).to_json()
     except Exception as e:
         return ErrorResponse(500, str(e)).to_json()
 

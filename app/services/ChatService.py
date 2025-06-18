@@ -76,10 +76,8 @@ class ChatService:
 
         model = get_chatllm(model_config_id)
         response = model.chat(message)
-        print("response:\n", response)
         # 使用通用提取函数
         content = ChatService.extract_response_content(response)
-        print("content:\n", content)
         # 保存处理后的内容
         res = ChatMapper().save_message(conversation_id, "assistant", content)
         return res
