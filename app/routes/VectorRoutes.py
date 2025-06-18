@@ -88,8 +88,7 @@ def get_vector_db(vector_db_id):
 @vector_bp.route('/update/<int:vector_db_id>', methods=['POST'])
 @login_required
 def update_vector_db(vector_db_id):
-    data = request.form
-
+    data = request.get_json()
     # 处理 document_similarity
     document_similarity_str = data.get('document_similarity')
     if document_similarity_str:
@@ -141,22 +140,29 @@ def upload_file():
     if 'file' not in request.files:
         return ErrorResponse(400, "未提供文件").to_json()
 
-    file = request.files['file']
-    if file.filename == '':
+    files = request.files.getlist('files')
+    if not files or all(file.filename == '' for file in files):
         return ErrorResponse(400, "未选择文件").to_json()
+
+    describe = request.form.get('describe', '')
 
     vector_db_id = request.form.get('vector_db_id')
     if not vector_db_id:
         return ErrorResponse(400, "未提供向量数据库ID").to_json()
 
+    document_ids = []
     try:
-        # 传递当前登录用户ID
-        document_id = VectorService.upload_file(
-            vector_db_id=vector_db_id,
-            file=file,
-            user_id=request.user.id  # 添加用户ID
-        )
-        return SuccessResponse("文件上传成功", data={"document_id": document_id}).to_json()
+        for file in files:
+            # 传递当前登录用户ID
+            document_id = VectorService.upload_file(
+                vector_db_id=vector_db_id,
+                file=file,
+                user_id=request.user.id,  # 添加用户ID
+                describe=describe
+            )
+            if document_id:
+                document_ids.append(document_id)
+        return SuccessResponse("文件上传成功", data={"document_ids": document_ids}).to_json()
     except Exception as e:
         return handle_exception(e)
 

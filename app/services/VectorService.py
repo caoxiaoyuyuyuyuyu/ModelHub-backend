@@ -220,7 +220,7 @@ class VectorService:
             return None
 
     @staticmethod
-    def upload_file(vector_db_id, file, user_id):  # 添加 user_id 参数
+    def upload_file(vector_db_id, file, user_id, describe):  # 添加 user_id 参数
         """上传文件并处理为向量存储 (使用 LlamaIndex + ChromaDB)"""
         filename = getattr(file, 'filename', 'unknown')
         logger.info(f"开始上传文件到向量数据库 {vector_db_id}: {filename}")
@@ -287,11 +287,11 @@ class VectorService:
                 user_id=user_id,  # 使用传入的用户ID
                 vector_db_id=vector_db_id,
                 name=unique_filename,
+                describe=describe,
                 original_name=filename,
                 type=file_type,
                 size=os.path.getsize(save_path),
                 save_path=save_path,
-                describe=None
             )
 
             db.session.add(document)
