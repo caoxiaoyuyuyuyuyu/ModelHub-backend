@@ -128,6 +128,9 @@ def update_vector_db(vector_db_id):
 @login_required
 def delete_vector_db(vector_db_id):
     try:
+        documents = Document.query.filter_by(vector_db_id=vector_db_id).all()
+        for document in documents:
+            VectorService.delete_file(document.id)
         if VectorService.delete_vector_db(vector_db_id):
             return SuccessResponse("删除成功").to_json()
         return ErrorResponse(404, "未找到该向量数据库").to_json()
@@ -139,10 +142,6 @@ def delete_vector_db(vector_db_id):
 def upload_file():
     if 'files' not in request.files:
         return ErrorResponse(400, "未提供文件").to_json()
-
-    file_list = request.files.getlist('files')
-    print("接收到的表单数据:", request.form)
-    print("实际接收到的文件数量:", len(file_list))
 
     files = request.files.getlist('files')
     if not files or all(file.filename == '' for file in files):
@@ -167,6 +166,16 @@ def upload_file():
             if document_id:
                 document_ids.append(document_id)
         return SuccessResponse("文件上传成功", data={"document_ids": document_ids}).to_json()
+    except Exception as e:
+        return handle_exception(e)
+
+@vector_bp.route('/delete_file/<int:document_id>', methods=['DELETE'])
+@login_required
+def delete_file(document_id):
+    try:
+        if VectorService.delete_file(document_id):
+            return SuccessResponse("文件删除成功").to_json()
+        return ErrorResponse(404, "未找到该文件").to_json()
     except Exception as e:
         return handle_exception(e)
 

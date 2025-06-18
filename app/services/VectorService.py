@@ -29,7 +29,7 @@ logger = logging.getLogger("VectorService")
 MAX_RETRIES = 5
 RETRY_DELAY = 2
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB文件大小限制
-BASE_DOCS_DIR = "./data/vector_docs/"  # 文档存储基础目录
+BASE_DOCS_DIR = "data\\vector_docs\\"  # 文档存储基础目录
 
 
 class VectorService:
@@ -148,9 +148,9 @@ class VectorService:
     def delete_vector_db(vector_db_id):
         result = VectorMapper.delete_vector_db(vector_db_id)
         if result:
-            # 删除 ChromDB 集合
-            client = get_chromadb_client()
             try:
+                # 删除 ChromDB 集合
+                client = get_chromadb_client()
                 client.delete_collection(name=f"vector_db_{vector_db_id}")
                 logger.info(f"已删除ChromaDB集合: vector_db_{vector_db_id}")
             except ValueError:
@@ -269,6 +269,8 @@ class VectorService:
             # 读取并处理文件
             documents = SimpleDirectoryReader(input_files=[save_path]).load_data()
             logger.info(f"成功加载 {len(documents)} 个文档片段")
+            for doc in documents:
+                print(f"文档元数据: {doc.metadata}")  # 查看默认元数据字段
 
             # 创建索引并存储
             index = VectorStoreIndex.from_documents(
@@ -276,8 +278,12 @@ class VectorService:
                 storage_context=storage_context,
                 embed_model=embedding_model
             )
-
-            logger.info(f"文件处理成功: {filename}，添加了 {len(documents)} 个文档片段")
+            nodes = storage_context.docstore.docs
+            for node_id, node in nodes.items():
+                print(f"Node ID: {node_id}")
+                print(f"Content: {node.text}")  # 文本内容
+                print(f"Metadata: {node.metadata}")  # 元数据
+                print("---")
 
             # 3. 保存文档信息到数据库
             file_extension = os.path.splitext(filename)[1]
@@ -313,6 +319,43 @@ class VectorService:
             # 回滚数据库操作
             db.session.rollback()
             raise Exception(f"文件处理失败: {str(e)}")
+
+    @staticmethod
+    def delete_file(document_id):
+        try:
+            # 从数据库中获取文件记录
+            document = Document.query.get(document_id)
+            if not document:
+                return False
+
+            # 删除文件夹中的文件
+            file_path = document.save_path
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+            # 删除数据库记录
+            db.session.delete(document)
+            db.session.commit()
+
+            # 删除向量集合中的相关数据（假设向量集合根据文件名或ID存储数据）
+            vector_db_id = document.vector_db_id
+            client = get_chromadb_client()
+            if client:
+                collection_name = f"vector_db_{vector_db_id}"
+                try:
+                    collection = client.get_collection(name=collection_name)
+                    # 假设向量集合中使用文件名作为ID
+                    collection.delete(where={"file_name": document.name})
+                    # collection.delete(ids=[document.name])
+                except Exception as e:
+                    print(f"删除向量集合中的数据失败: {str(e)}")
+
+            return True
+        except Exception as e:
+            db.session.rollback()
+            print(f"删除文件失败: {str(e)}")
+            return False
+
     @staticmethod
     def get_user_vector_dbs(user_id):
         try:
