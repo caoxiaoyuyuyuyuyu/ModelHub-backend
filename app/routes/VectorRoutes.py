@@ -138,25 +138,40 @@ def delete_vector_db(vector_db_id):
 @vector_bp.route('/upload', methods=['POST'])
 @login_required
 def upload_file():
-    if 'file' not in request.files:
+    if 'files' not in request.files:
         return ErrorResponse(400, "未提供文件").to_json()
 
-    file = request.files['file']
-    if file.filename == '':
+    files = request.files.getlist('files')
+    if not files or all(file.filename == '' for file in files):
         return ErrorResponse(400, "未选择文件").to_json()
 
     vector_db_id = request.form.get('vector_db_id')
     if not vector_db_id:
         return ErrorResponse(400, "未提供向量数据库ID").to_json()
 
+    document_ids = []
     try:
-        # 传递当前登录用户ID
-        document_id = VectorService.upload_file(
-            vector_db_id=vector_db_id,
-            file=file,
-            user_id=request.user.id  # 添加用户ID
-        )
-        return SuccessResponse("文件上传成功", data={"document_id": document_id}).to_json()
+        for file in files:
+            # 传递当前登录用户ID
+            document_id = VectorService.upload_file(
+                vector_db_id=vector_db_id,
+                file=file,
+                user_id=request.user.id  # 添加用户ID
+            )
+            if document_id:
+                document_ids.append(document_id)
+
+        return SuccessResponse("文件上传成功", data={"document_ids": document_ids}).to_json()
+    except Exception as e:
+        return handle_exception(e)
+
+@vector_bp.route('/delete_file/<int:document_id>', methods=['DELETE'])
+@login_required
+def delete_file(document_id):
+    try:
+        if VectorService.delete_file(document_id):
+            return SuccessResponse("文件删除成功").to_json()
+        return ErrorResponse(404, "未找到该文件").to_json()
     except Exception as e:
         return handle_exception(e)
 

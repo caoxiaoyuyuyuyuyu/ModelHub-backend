@@ -313,6 +313,42 @@ class VectorService:
             # 回滚数据库操作
             db.session.rollback()
             raise Exception(f"文件处理失败: {str(e)}")
+
+    @staticmethod
+    def delete_file(document_id):
+        try:
+            # 从数据库中获取文件记录
+            document = Document.query.get(document_id)
+            if not document:
+                return False
+
+            # 删除文件夹中的文件
+            file_path = document.save_path
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+            # 删除数据库记录
+            db.session.delete(document)
+            db.session.commit()
+
+            # 删除向量集合中的相关数据（假设向量集合根据文件名或ID存储数据）
+            vector_db_id = document.vector_db_id
+            client = get_chromadb_client()
+            if client:
+                collection_name = f"vector_db_{vector_db_id}"
+                try:
+                    collection = client.get_collection(name=collection_name)
+                    # 假设向量集合中使用文件名作为ID
+                    collection.delete(ids=[document.name])
+                except Exception as e:
+                    print(f"删除向量集合中的数据失败: {str(e)}")
+
+            return True
+        except Exception as e:
+            db.session.rollback()
+            print(f"删除文件失败: {str(e)}")
+            return False
+
     @staticmethod
     def get_user_vector_dbs(user_id):
         try:
