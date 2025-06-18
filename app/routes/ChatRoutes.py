@@ -43,6 +43,7 @@ def chat() -> str:
     :return: 返回json格式的字符串
     """
     conversation_id = request.form.get("conversation_id")
+    model_config_id = request.form.get("model_config_id")
     message = request.form.get("message")
 
     if not message and not conversation_id:
@@ -50,7 +51,7 @@ def chat() -> str:
 
     try:
         mes = ChatService.saveMessage(int(conversation_id), "user", str(message)) # 问题
-        res = ChatService.chat(int(conversation_id))  # 回答
+        res = ChatService.chat(int(conversation_id), int(model_config_id), message)  # 回答
         return SuccessResponse("对话成功！",
                                {"conversation_id": conversation_id,
                                 "mes": mes,

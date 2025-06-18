@@ -38,12 +38,18 @@ class ChatService:
         return res
 
     @staticmethod
-    def chat(conversation_id: int) -> str:
+    def chat(conversation_id: int, model_config_id: int, message: str) -> str:
         """
         获取回答并保存
+        :param conversation_id: 对话 id
+        :param model_config_id: 模型配置 id
+        :param message: 消息
         :return:
         """
-        response = "智能ai为您服务！下面是我的回答：......"
+        from app.utils.TransUtil import get_chatllm
+
+        model = get_chatllm(model_config_id)
+        response = model.chat(message)
         res = ChatMapper().save_message(conversation_id, "system", response)
         return res
 

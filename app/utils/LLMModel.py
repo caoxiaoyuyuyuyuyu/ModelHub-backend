@@ -11,7 +11,6 @@ from llama_index.core.llms import (
     MessageRole,
 )
 from openai import OpenAI
-from TransUtil import to_messages_dicts, get_additional_kwargs
 
 
 # 聊天模型类
@@ -95,6 +94,7 @@ class ChatGLM(CustomLLM):
 
     # 聊天功能实现
     def chat(self, messages: Sequence[ChatMessage], **kwargs: Any) -> ChatResponse:
+        from .TransUtil import to_messages_dicts, get_additional_kwargs
         if isinstance(messages, str):
             messages = [ChatMessage(content=messages, role=MessageRole.USER)]
 
