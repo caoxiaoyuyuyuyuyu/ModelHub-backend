@@ -137,8 +137,12 @@ def delete_vector_db(vector_db_id):
 @vector_bp.route('/upload', methods=['POST'])
 @login_required
 def upload_file():
-    if 'file' not in request.files:
+    if 'files' not in request.files:
         return ErrorResponse(400, "未提供文件").to_json()
+
+    file_list = request.files.getlist('files')
+    print("接收到的表单数据:", request.form)
+    print("实际接收到的文件数量:", len(file_list))
 
     files = request.files.getlist('files')
     if not files or all(file.filename == '' for file in files):
@@ -190,5 +194,14 @@ def get_document(document_id):
                 document.to_dict()
             ).to_json()
         return ErrorResponse(404, "未找到该文件").to_json()
+    except Exception as e:
+        return handle_exception(e)
+
+@vector_bp.route('/connect/<int:vector_id>', methods=['GET'])
+@login_required
+def connect_vector(vector_id):
+    try:
+        VectorService.ensure_collection_exists(vector_id)
+        return SuccessResponse("连接成功").to_json()
     except Exception as e:
         return handle_exception(e)
