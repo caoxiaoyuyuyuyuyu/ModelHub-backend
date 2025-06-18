@@ -84,5 +84,12 @@ class ChatService:
         return res
 
     @staticmethod
-    def set_chat_history(chat_history: int) -> str:
-        pass
+    def set_chat_history(conversation_id: int, chat_history: int) -> str:
+        """
+        修改conversation.chat_history参数
+        :param conversation_id: id
+        :param chat_history:
+        :return:
+        """
+        res = ChatMapper().set_chat_history(conversation_id, chat_history)
+        return res

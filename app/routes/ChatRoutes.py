@@ -98,7 +98,7 @@ def delete_conversation() -> str:
         return ErrorResponse(400, "conversation_id is null").to_json()
     try:
         res = ChatService.delete_conversation(int(conversation_id))
-        return SuccessResponse("删除对话成功！", {"delete_id": res}).to_json()
+        return SuccessResponse("删除对话成功！", {"delete": res, "msg": conversation_id+"已成功删除"}).to_json()
     except Exception as e:
         return ErrorResponse(500, str(e)).to_json()
 
@@ -106,14 +106,38 @@ def delete_conversation() -> str:
 @login_required
 def set_chat_history() -> str:
     """
-    修改 chat_history 参数
+    修改对话的 chat_history 参数
     :return: 返回字符串
     """
     chat_history = request.form.get("chat_history")
-    if not chat_history:
-        return ErrorResponse(400, "chat_history is null").to_json()
+    conversation_id = request.form.get("conversation_id")
+    if not chat_history and not conversation_id:
+        return ErrorResponse(400, "params missing").to_json()
     try:
-        res = ChatService.set_chat_history(chat_history)
-        return SuccessResponse("修改chat_history成功！", {"res": res, "chat_history": chat_history}).to_json()
+        res = ChatService.set_chat_history(int(conversation_id), int(chat_history))
+        return SuccessResponse("修改chat_history成功！", {"res": res}).to_json()
+    except Exception as e:
+        return ErrorResponse(500, str(e)).to_json()
+
+@chat_bp.route("/rechat", methods=['POST'])
+@login_required
+def rechat() -> str:
+    """
+    重新回答该问题
+    :return:
+    """
+    conversation_id = request.form.get("conversation_id")
+    message = request.form.get("message")
+
+    if not message and not conversation_id:
+        return ErrorResponse(400, "Params missing").to_json()
+
+    try:
+        mes = ChatService.saveMessage(int(conversation_id), "user", str(message))  # 问题
+        res = ChatService.chat(int(conversation_id))  # 回答
+        return SuccessResponse("重新回答成功！",
+                               {"conversation_id": conversation_id,
+                                "mes": mes,
+                                "res": res}).to_json()
     except Exception as e:
         return ErrorResponse(500, str(e)).to_json()

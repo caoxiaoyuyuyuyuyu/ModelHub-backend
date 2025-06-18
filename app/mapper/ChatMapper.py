@@ -140,15 +140,44 @@ class ChatMapper:
         self.redis_client.ltrim(key, -max_length, -1)
 
     def delete_conversation(self, conversation_id: int) -> int:
-        """删除整个对话"""
+        """
+        删除对话
+        :param conversation_id:
+        :return:
+        """
         try:
             # 删除 redis 中的对话
             key = self._format_key(conversation_id)
             # 删除数据库中的对话
-            Message.query.filter_by(conversation_id=conversation_id).delete()
-            Conversation.query.filter_by(id=conversation_id).delete()
-            db.session.commit()
+            conversation = Conversation.query.get(conversation_id)
+            if conversation:
+                Message.query.filter_by(conversation_id=conversation_id).delete()
+                db.session.delete(conversation)
+                db.session.commit()
             return self.redis_client.delete(key)
         except Exception as e:
             db.session.rollback()
             raise Exception({"code":500, "msg":"对话删除失败"+str(e)})
+
+    def set_chat_history(self, conversation_id: int, chat_history: int) -> str:
+        """
+        修改conversation.chat_history参数
+        :param conversation_id:
+        :param chat_history:
+        :return:
+        """
+        old_chat_history=-1
+        try:
+            conv=Conversation.query.get(conversation_id)
+            old_chat_history=conv.chat_history
+            conv.chat_history=chat_history
+            db.session.commit()
+            db.session.refresh(conv)
+            return {
+                "conversation_id": conversation_id,
+                "old_chat_history": old_chat_history,
+                "new_chat_history": conv.chat_history
+            }
+        except Exception as e:
+            db.session.rollback()
+            raise Exception({"code":500, "msg":"参数修改失败"+str(e)})
