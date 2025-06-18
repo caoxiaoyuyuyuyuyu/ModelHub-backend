@@ -119,4 +119,23 @@ class ModelMapper:
             return model_config
         except Exception as e:
             db.session.rollback()
-            raise Exception("更新模型配置失败"+str(e))
+            raise Exception("更新模型配置失败" + str(e))
+
+    # 删除模型配置
+    @staticmethod
+    def delete_model_config_by_id(config_id: int):
+        try:
+            model_config = ModelConfig.query.get(config_id)
+            if not model_config:
+                raise ValueError("model config not exist")
+
+            db.session.delete(model_config)
+            db.session.commit()
+            return model_config
+
+        except ValueError as ve:
+            db.session.rollback()
+            raise ve
+        except Exception as e:
+            db.session.rollback()
+            raise Exception(f"模型配置删除失败:{str(e)}")
