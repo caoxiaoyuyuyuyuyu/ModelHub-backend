@@ -75,19 +75,19 @@ def get_history() -> str:
     except Exception as e:
         return ErrorResponse(500, str(e)).to_json()
 
-@chat_bp.route("/histories", methods=['POST'])
+@chat_bp.route("/histories", methods=['GET'])
 @login_required
 def get_conversation() -> str:
     """
     获取对话的列表
     :return: 返回json格式的字符串
     """
-    user_id = request.form.get("user_id")
+    user_id = request.headers.get('User-Id')
     if not user_id:
         return ErrorResponse(400, "user_id is null").to_json()
     try:
         histories = ChatService.get_conversation(int(user_id))
-        return SuccessResponse("历史记录获取成功！", {"history": histories}).to_json()
+        return SuccessResponse("历史记录获取成功！", histories).to_json()
     except Exception as e:
         return ErrorResponse(500, str(e)).to_json()
 
