@@ -18,7 +18,7 @@ import time
 from llama_index.core import (
     SimpleDirectoryReader,
     VectorStoreIndex,
-    StorageContext
+    StorageContext, load_index_from_storage
 )
 from llama_index.vector_stores.chroma import ChromaVectorStore
 
@@ -386,7 +386,6 @@ class VectorService:
         try:
             # 创建向量存储
             vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-            storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
             # 初始化嵌入模型
             embedding_model = ChatEmbeddings(
@@ -396,14 +395,17 @@ class VectorService:
             )
 
             # 加载索引
-            index = VectorStoreIndex([], storage_context=storage_context, embed_model=embedding_model)
+            index = VectorStoreIndex.from_vector_store(
+                vector_store=vector_store,
+                embed_model=embedding_model
+            )
 
             # 创建查询引擎
-            query_engine = index.as_query_engine(similarity_top_k=n_results)
+            retriever = index.as_retriever(similarity_top_k=n_results)
+            nodes = retriever.retrieve(query_text)
 
             # 执行查询
-            response = query_engine.query(query_text)
-            return response
+            return [{"text": node.text, "metadata": node.metadata, "score": node.score} for node in nodes]
         except Exception as e:
             logger.error(f"向量查询失败: {str(e)}", exc_info=True)
             return None

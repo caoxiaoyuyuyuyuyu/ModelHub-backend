@@ -214,3 +214,9 @@ def connect_vector(vector_id):
         return SuccessResponse("连接成功").to_json()
     except Exception as e:
         return handle_exception(e)
+
+@vector_bp.route('/query/<int:vector_id>', methods=['POST'])
+@login_required
+def query_vectors(vector_id):
+    result = VectorService.query_vectors(vector_id, request.json.get('query_text'), request.json.get('n_results', 10))
+    return SuccessResponse("查询成功", data=result).to_json()
