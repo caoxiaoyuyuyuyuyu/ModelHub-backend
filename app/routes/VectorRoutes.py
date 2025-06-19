@@ -138,10 +138,13 @@ def delete_vector_db(vector_db_id):
 @vector_bp.route('/upload', methods=['POST'])
 @login_required
 def upload_file():
-    if 'files' not in request.files:
+    print("Request headers:", request.headers)  # 打印请求头
+    print("Request form data:", request.form)  # 打印表单数据
+    print("Request files:", request.files)  # 打印文件数据
+    if 'file' not in request.files:
         return ErrorResponse(400, "未提供文件").to_json()
 
-    files = request.files.getlist('files')
+    files = request.files.getlist('file')
     if not files or all(file.filename == '' for file in files):
         return ErrorResponse(400, "未选择文件").to_json()
 
@@ -185,6 +188,47 @@ def get_user_vector_db_list():
             "查询成功",
             vector_db_list
         ).to_json()
+    except Exception as e:
+        return handle_exception(e)
+
+
+@vector_bp.route('/query/<int:vector_db_id>', methods=['POST'])
+@login_required
+def query_vectors(vector_db_id):
+    data = request.get_json()  # 改为获取JSON数据
+    if not data or "query_text" not in data:
+        return ErrorResponse(400, "请求参数错误，需要提供query_text").to_json()
+
+    query_text = data.get('query_text')
+    n_results = int(data.get('n_results', 10))  # 默认返回10个结果
+
+    try:
+        response = VectorService.query_vectors(vector_db_id, query_text, n_results)
+
+        # 处理LlamaIndex的响应对象
+        if response and hasattr(response, 'response'):
+            result_data = {
+                'answer': response.response,
+                'sources': [{'node_id': node.node_id, 'text': node.text}
+                            for node in response.source_nodes] if hasattr(response, 'source_nodes') else []
+            }
+            return SuccessResponse("查询成功", result_data).to_json()
+        else:
+            return ErrorResponse(404, "未找到匹配结果").to_json()
+    except Exception as e:
+        return handle_exception(e)
+
+@vector_bp.route('/ensure_collection/<int:vector_db_id>', methods=['GET'])
+@login_required
+def ensure_collection(vector_db_id):
+    try:
+        result = VectorService.ensure_collection_exists(vector_db_id)
+        if result:
+            return SuccessResponse(
+                "集合已存在或创建成功",
+                {"collection_exists": True}
+            ).to_json()
+        return ErrorResponse(500, "无法确保集合存在").to_json()
     except Exception as e:
         return handle_exception(e)
 

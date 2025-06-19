@@ -21,6 +21,7 @@ from llama_index.core import (
     StorageContext
 )
 from llama_index.vector_stores.chroma import ChromaVectorStore
+from app.models.model_info import ModelInfo
 
 # 初始化日志
 logging.basicConfig(level=logging.INFO)
@@ -368,35 +369,45 @@ class VectorService:
             logger.error(f"获取用户向量数据库列表失败: {str(e)}")
             return []
     @staticmethod
-    def query_vectors(vector_db_id, query_text, n_results=10):
-        """查询向量数据库 (使用 LlamaIndex)"""
-        # 获取 ChromaDB 集合
-        chroma_collection = VectorService.get_chroma_collection(vector_db_id)
-        if not chroma_collection:
-            logger.error("无法获取 ChromaDB 集合")
+    def query_vectors(vector_db_id, query_text, n_results):
+        vector_db = VectorMapper.get_vector_db(vector_db_id)
+        if not vector_db:
+            logger.error(f"未找到向量数据库: {vector_db_id}")
             return None
 
+        # 根据 embedding_id 从 ModelInfo 表中获取模型信息
+        model_info = ModelInfo.query.get(vector_db.embedding_id)
+        if not model_info:
+            logger.error(f"未找到对应的嵌入模型信息: {vector_db.embedding_id}")
+            return None
+
+        # 使用获取到的模型信息创建 ChatEmbeddings 对象
+        embedding_model = ChatEmbeddings(
+            model=model_info.model_name,
+            api_key=model_info.api_key,
+            base_url=model_info.base_url
+        )
+
+        # 以下是原 query_vectors 方法的其他逻辑
+        client = get_chromadb_client()
+        if not client:
+            logger.error("无法获取 ChromaDB 客户端")
+            return None
+
+        collection_name = f"vector_db_{vector_db_id}"
         try:
-            # 创建向量存储
-            vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-            storage_context = StorageContext.from_defaults(vector_store=vector_store)
-
-            # 初始化嵌入模型
-            embedding_model = ChatEmbeddings(
-                model="text-embedding-v3",
-                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-                api_key="sk-1d8575bdb4ab4b64abde2da910ef578b"
-            )
-
-            # 加载索引
-            index = VectorStoreIndex([], storage_context=storage_context, embed_model=embedding_model)
-
-            # 创建查询引擎
-            query_engine = index.as_query_engine(similarity_top_k=n_results)
-
-            # 执行查询
-            response = query_engine.query(query_text)
-            return response
+            collection = client.get_collection(name=collection_name)
         except Exception as e:
-            logger.error(f"向量查询失败: {str(e)}", exc_info=True)
+            logger.error(f"获取集合失败: {str(e)}")
             return None
+
+        # 获取查询文本的嵌入向量
+        query_embedding = embedding_model.get_general_text_embedding(query_text)
+
+        # 查询向量
+        results = collection.query(
+            query_embeddings=[query_embedding],
+            n_results=n_results
+        )
+
+        return results
