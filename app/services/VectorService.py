@@ -404,8 +404,20 @@ class VectorService:
             retriever = index.as_retriever(similarity_top_k=n_results)
             nodes = retriever.retrieve(query_text)
 
+            document_similarity = VectorMapper.get_vector_db(vector_db_id).document_similarity
+
+            res = []
+            for node in nodes:
+                if node.score < document_similarity:
+                    continue
+                file_name = node.metadata.get("file_name")
+                if file_name:
+                    document = Document.query.filter_by(name=file_name).first()
+                    if document:
+                        res.append({"text": node.text, "document_name": document.original_name, "score": node.score, "document_id": document.id})
+
             # 执行查询
-            return [{"text": node.text, "metadata": node.metadata, "score": node.score} for node in nodes]
+            return res
         except Exception as e:
             logger.error(f"向量查询失败: {str(e)}", exc_info=True)
             return None

@@ -83,7 +83,7 @@ class ChatService:
         return res
 
     @staticmethod
-    def get_conversation(user_id: int) -> str:
+    def get_conversation(user_id: int) -> List:
         """
         获取对话的历史信息
         :param user_id: 用户 id
@@ -98,7 +98,7 @@ class ChatService:
         return histories
 
     @staticmethod
-    def get_history(conversation_id: int) -> str:
+    def get_history(conversation_id: int) -> dict:
         """
         获取对话的历史信息
         :param start: 开始位置，默认从第一条开始

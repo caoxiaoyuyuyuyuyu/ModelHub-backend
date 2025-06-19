@@ -81,7 +81,7 @@ class ChatMapper:
         except Exception as e:
             raise Exception({"code":500, "msg":"查询错误！获取用户对话失败"+str(e)})
 
-    def get_conversation(self, conversation_id: str) -> List:
+    def get_conversation(self, conversation_id: int) -> dict:
         """
         获取对话历史
         :param conversation_id: 对话ID
@@ -90,12 +90,15 @@ class ChatMapper:
         try:
             conversation_info = self.get_conversation_info(conversation_id)
             history = self.get_history(conversation_id)
-            return [conversation_info, history]
+            return {
+                "conversation_info": conversation_info,
+                "history": history
+            }
         except Exception as e:
             raise Exception({"code":500, "msg":"查询错误！获取用户对话失败"+str(e)})
 
 
-    def get_conversation_info(self, conversation_id: int) -> str:
+    def get_conversation_info(self, conversation_id: int) -> dict:
         """
         获取对话的信息
         :param conversation_id: 对话 id
@@ -114,7 +117,7 @@ class ChatMapper:
             raise Exception({"code":500, "msg":"获取对话信息失败！"+str(e)})
 
 
-    def get_history(self, conversation_id: int) -> str:
+    def get_history(self, conversation_id: int) -> dict:
         """
         获取单个对话的历史记录
         :param conversation_id: 对话 id
