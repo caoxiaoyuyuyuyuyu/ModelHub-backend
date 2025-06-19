@@ -1,9 +1,9 @@
+# app/mapper/UserMapper.py
 from app.models.user import User
 from sqlalchemy.orm import Session
 
-from app.utils.JwtUtil import get_password_hash
+from app.utils.PasswordUtil import get_password_hash  # 从新模块导入
 from app.extensions import db
-
 
 class UserMapper:
     @staticmethod
@@ -28,6 +28,7 @@ class UserMapper:
         except Exception as e:
             db.session.rollback()
             raise Exception(f"创建用户失败: {str(e)}")
+
     @staticmethod
     def update_user_by_id(id: int, name: str | None, email: str | None, password: str | None, describe: str | None):
         try:

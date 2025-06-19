@@ -3,7 +3,7 @@ from typing import Any, List
 from llama_index.core.bridge.pydantic import Field, PrivateAttr
 from llama_index.core.embeddings import BaseEmbedding
 from openai import OpenAI
-
+import asyncio  # 添加 asyncio 导入
 
 # 嵌入模型封装类
 class ChatEmbeddings(BaseEmbedding):
