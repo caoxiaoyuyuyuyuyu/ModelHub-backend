@@ -193,3 +193,24 @@ class ModelService:
         except Exception as e:
             raise Exception({'code': 500, 'msg': "更新模型配置失败"+str(e)})
 
+    @staticmethod
+    def delete_model_config(config_id):
+        try:
+            config = ModelMapper.delete_model_config_by_id(config_id)
+            return {
+                "id": config.id,
+                "name": config.name,
+                "share_id": config.share_id,
+                "base_model_id": config.base_model_id,
+                "temperature": config.temperature,
+                "top_p": config.top_p,
+                "prompt": config.prompt,
+                "vector_db_id": config.vector_db_id,
+                "create_at": config.create_at,
+                "update_at": config.update_at,
+                "is_private": config.is_private,
+                "describe": config.describe
+            }
+        except Exception as e:
+            raise Exception({'code': 500, 'msg': "删除模型配置失败"+str(e)})
+

@@ -130,3 +130,12 @@ def update_model_config():
         return SuccessResponse("模型配置更新成功", config).to_json()
     except Exception as e:
         return error_500_print("Model error", e)
+
+
+@model_bp.route('/modelconfig/delete/<int:config_id>', methods=["DELETE"])
+def delete_model_config(config_id: int):
+    try:
+        config = ModelService.delete_model_config(config_id)
+        return SuccessResponse("模型配置删除成功", config).to_json()
+    except Exception as e:
+        return error_500_print("Model error", e)
