@@ -53,9 +53,7 @@ def chat() -> str:
         mes = ChatService.saveMessage(int(conversation_id), "user", str(message)) # 问题
         res = ChatService.chat(int(conversation_id), int(model_config_id), message)  # 回答
         return SuccessResponse("对话成功！",
-                               {"conversation_id": conversation_id,
-                                "mes": mes,
-                                "res": res}).to_json()
+                               {"conversation_id": conversation_id, "response": res}).to_json()
     except Exception as e:
         return ErrorResponse(500, str(e)).to_json()
 
@@ -75,7 +73,7 @@ def get_history() -> str:
     except Exception as e:
         return ErrorResponse(500, str(e)).to_json()
 
-@chat_bp.route("/histories", methods=['Get'])
+@chat_bp.route("/histories", methods=['GET'])
 @login_required
 def get_conversation() -> str:
     """
@@ -87,7 +85,7 @@ def get_conversation() -> str:
         return ErrorResponse(400, "user_id is null").to_json()
     try:
         histories = ChatService.get_conversation(int(user_id))
-        return SuccessResponse("历史记录获取成功！", {"history": histories}).to_json()
+        return SuccessResponse("历史记录获取成功！", histories).to_json()
     except Exception as e:
         return ErrorResponse(500, str(e)).to_json()
 

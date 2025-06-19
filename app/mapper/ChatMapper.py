@@ -55,7 +55,6 @@ class ChatMapper:
             # 保存到redis中
             self.redis_client.rpush(key, str(message))
             return {
-                "conversation_id": message_db.conversation_id,
                 "role": message_db.role,
                 "content": message_db.content
             }
@@ -67,8 +66,8 @@ class ChatMapper:
     def get_conversation_id(self, user_id: int) -> list:
         """
         根据用户 id 查询对话
-        :param user_id:
-        :return:
+        :param user_id: 用户 id
+        :return: 返回 conversation_id 的列表
         """
         try:
             conversation_ids = Conversation.query.filter_by(user_id=user_id).all()
@@ -82,17 +81,37 @@ class ChatMapper:
         except Exception as e:
             raise Exception({"code":500, "msg":"查询错误！获取用户对话失败"+str(e)})
 
-    def get_conversation(self, conversation_id: str) -> List[Dict[str, str]]:
+    def get_conversation(self, conversation_id: str) -> List:
         """
         获取对话历史
         :param conversation_id: 对话ID
-        :return: 消息列表
+        :return: 对话信息列表
         """
         try:
+            conversation_info = self.get_conversation_info(conversation_id)
             history = self.get_history(conversation_id)
-            return history
+            return [conversation_info, history]
         except Exception as e:
             raise Exception({"code":500, "msg":"查询错误！获取用户对话失败"+str(e)})
+
+
+    def get_conversation_info(self, conversation_id: int) -> str:
+        """
+        获取对话的信息
+        :param conversation_id: 对话 id
+        :return: 返回该对话的信息
+        """
+        try:
+            info = Conversation.query.get(conversation_id)
+            return {
+                "id":info.id,
+                "name": info.name,
+                "model_config_id": info.model_config_id,
+                "chat_history": info.chat_history,
+                "update_at": info.update_at.isoformat() if info.update_at else None
+            }
+        except Exception as e:
+            raise Exception({"code":500, "msg":"获取对话信息失败！"+str(e)})
 
 
     def get_history(self, conversation_id: int) -> str:
@@ -102,23 +121,37 @@ class ChatMapper:
         :return: 返回历史记录的列表
         """
         try:
-            # 获取所有消息记录
-            history = Message.query.filter_by(conversation_id=conversation_id).all()
+            # 获取最新的前10条消息
+            history = Message.query.filter_by(conversation_id=conversation_id)\
+                .order_by(Message.create_at.desc())\
+                .limit(10)\
+                .all()
 
-            # 将消息转换为字典格式
-            messages = []
-            for message in history:
-                messages.append({
-                    "role": message.role,
-                    "content": message.content
-                })
+            # 处理空结果
+            if not history:
+                return {
+                    "messages": [],
+                    "message": "该对话暂无历史消息"
+                }
+
+            # 转换为字典列表（使用列表推导式更简洁）
+            messages = [{
+                "role": m.role,
+                "content": m.content,
+                "create_at": m.create_at.isoformat() if m.create_at else None
+            } for m in history]
+
+            # 如果需要时间正序（最旧在前），取消下面这行的注释
+            # messages.reverse()
 
             return {
-                "conversation_id": conversation_id,
-                "messages": messages  # 返回消息列表而不是单个消息
+                "messages": messages,
+                "count": len(messages)
             }
         except Exception as e:
-            raise Exception({"code":500, "msg": "查询历史记录失败"+str(e)})
+            # 更详细的错误信息
+            error_msg = f"查询对话 {conversation_id} 的历史记录失败: {str(e)}"
+            raise Exception({"code": 500, "msg": error_msg})
 
     def get_latest_message(self, conversation_id: str) -> Dict[str, str]:
         """获取最新的一条消息"""

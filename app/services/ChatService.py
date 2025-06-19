@@ -38,6 +38,32 @@ class ChatService:
         return res
 
     @staticmethod
+    def extract_response_content(response: any) -> str:
+        """
+        从不同格式的响应中提取内容
+        :param response: 
+        :return: 
+        """
+        # 情况1: ChatResponse对象（llama_index）
+        if hasattr(response, 'message') and hasattr(response.message, 'content'):
+            return response.message.content
+
+        # 情况2: 字符串格式的响应
+        if isinstance(response, str):
+            # 尝试去除常见前缀
+            for prefix in ["assistant: ", "Assistant: ", "AI: "]:
+                if response.startswith(prefix):
+                    return response[len(prefix):]
+            return response
+
+        # 情况3: 字典格式的响应
+        if isinstance(response, dict):
+            return response.get('content', response.get('response', str(response)))
+
+        # 其他未知格式
+        return str(response)
+
+    @staticmethod
     def chat(conversation_id: int, model_config_id: int, message: str) -> str:
         """
         获取回答并保存
@@ -50,7 +76,10 @@ class ChatService:
 
         model = get_chatllm(model_config_id)
         response = model.chat(message)
-        res = ChatMapper().save_message(conversation_id, "system", response)
+        # 使用通用提取函数
+        content = ChatService.extract_response_content(response)
+        # 保存处理后的内容
+        res = ChatMapper().save_message(conversation_id, "assistant", content)
         return res
 
     @staticmethod
