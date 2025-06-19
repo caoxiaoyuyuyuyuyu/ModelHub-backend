@@ -9,24 +9,20 @@ class ChatMapper:
         self.redis_client = ConversationStore().getRedis_client()
         self.prefix = "chat:"  # 键前缀，用于区分不同类型的数据
 
-    def create_conversation(self, user_id: int, model_config_id: int, chat_history: int) -> str:
+    def create_conversation(self, user_id: int, model_config_id: int, chat_history: int) -> int:
         """
         创建对话
         :param user_id: 用户 id
         :param model_config_id: 模型配置 id
         :param chat_history: 上下文关联数量
-        :return:
+        :return: 返回对话的 id
         """
         try:
             conversation = Conversation(user_id=user_id, model_config_id=model_config_id, chat_history=chat_history)
             db.session.add(conversation)
             db.session.commit()
             db.session.refresh(conversation)
-            return {
-                "user_id": conversation.user_id,
-                "model_config_id": conversation.model_config_id,
-                "chat_history": conversation.chat_history
-            }
+            return conversation.id
         except Exception as e:
             db.session.rollback()
             raise Exception("创建对话失败"+str(e))
@@ -114,17 +110,18 @@ class ChatMapper:
             raise Exception({"code":500, "msg":"获取对话信息失败！"+str(e)})
 
 
-    def get_history(self, conversation_id: int) -> str:
+    def get_history(self, conversation_id: int, chat_history: int = 10) -> str:
         """
         获取单个对话的历史记录
         :param conversation_id: 对话 id
+        :param chat_history: 获取的条数，默认为 10 条
         :return: 返回历史记录的列表
         """
         try:
             # 获取最新的前10条消息
             history = Message.query.filter_by(conversation_id=conversation_id)\
                 .order_by(Message.create_at.desc())\
-                .limit(10)\
+                .limit(chat_history)\
                 .all()
 
             # 处理空结果

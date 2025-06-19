@@ -3,7 +3,7 @@ from typing import List, Dict, Tuple
 
 class ChatService:
     @staticmethod
-    def create_conversation(user_id: int, model_config_id: int, chat_history: int) -> str:
+    def create_conversation(user_id: int, model_config_id: int, chat_history: int) -> int:
         """
         创建对话
         :param user_id: 用户 id
@@ -15,7 +15,7 @@ class ChatService:
             res = ChatMapper().create_conversation(user_id, model_config_id, chat_history)
             return res
         except Exception as e:
-            return Exception({'code': 500, 'msg': "创建对话失败"+str(e)})
+            raise Exception({'code': 500, 'msg': "创建对话失败"+str(e)})
 
     @staticmethod
     def _format_message_(role: str, message: str) -> dict:
@@ -75,9 +75,11 @@ class ChatService:
         from app.utils.TransUtil import get_chatllm
 
         model = get_chatllm(model_config_id)
+
         response = model.chat(message)
         # 使用通用提取函数
         content = ChatService.extract_response_content(response)
+
         # 保存处理后的内容
         res = ChatMapper().save_message(conversation_id, "assistant", content)
         return res

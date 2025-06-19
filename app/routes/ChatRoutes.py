@@ -6,34 +6,34 @@ from app.utils.JwtUtil import login_required
 
 chat_bp = Blueprint('chat', __name__, url_prefix='/chat')
 
-@chat_bp.route("/create", methods=['POST'])
-@login_required
-def create_conversation() -> str:
-    """
-    创建对话
-    :return:
-    """
-    data = request.get_json()  # 使用JSON而不是form-data
-    if not data:
-        return ErrorResponse(400, "Request body must be JSON").to_json()
-
-    user_id = data.get("user_id")
-    model_config_id = data.get("model_config_id")
-    chat_history = data.get("chat_history")
-
-    # 验证必填字段
-    if not all([user_id, model_config_id, chat_history]):
-        return ErrorResponse(400, "Missing required parameters: user_id, model_config_id and chat_history").to_json()
-
-    try:
-        res = ChatService.create_conversation(user_id, model_config_id, chat_history)
-        return SuccessResponse("创建对话成功！",
-                               {"res": res,
-                                "user_id": user_id,
-                                "model_config_id": model_config_id,
-                                "chat_history": chat_history}).to_json()
-    except Exception as e:
-        return ErrorResponse(500, str(e)).to_json()
+# @chat_bp.route("/create", methods=['POST'])
+# @login_required
+# def create_conversation() -> str:
+#     """
+#     创建对话
+#     :return:
+#     """
+#     data = request.get_json()  # 使用JSON而不是form-data
+#     if not data:
+#         return ErrorResponse(400, "Request body must be JSON").to_json()
+#
+#     user_id = data.get("user_id")
+#     model_config_id = data.get("model_config_id")
+#     chat_history = data.get("chat_history")
+#
+#     # 验证必填字段
+#     if not all([user_id, model_config_id, chat_history]):
+#         return ErrorResponse(400, "Missing required parameters: user_id, model_config_id and chat_history").to_json()
+#
+#     try:
+#         res = ChatService.create_conversation(user_id, model_config_id, chat_history)
+#         return SuccessResponse("创建对话成功！",
+#                                {"res": res,
+#                                 "user_id": user_id,
+#                                 "model_config_id": model_config_id,
+#                                 "chat_history": chat_history}).to_json()
+#     except Exception as e:
+#         return ErrorResponse(500, str(e)).to_json()
 
 @chat_bp.route("/", methods=['POST'])
 @login_required
@@ -43,15 +43,19 @@ def chat() -> str:
     :return: 返回json格式的字符串
     """
     conversation_id = request.form.get("conversation_id")
-    model_config_id = request.form.get("model_config_id")
     message = request.form.get("message")
 
-    if not message and not conversation_id:
-        return ErrorResponse(400, "Params missing").to_json()
+    user_id = request.headers.get("User-Id")
+    model_config_id = request.form.get("model_config_id")
+    chat_history = request.form.get("chat_history")
 
     try:
+        if not conversation_id: # 创建对话
+            id = ChatService.create_conversation(int(user_id), int(model_config_id), int(chat_history))
+            conversation_id = id
+
         mes = ChatService.saveMessage(int(conversation_id), "user", str(message)) # 问题
-        res = ChatService.chat(int(conversation_id), int(model_config_id), message)  # 回答
+        res = ChatService.chat(int(conversation_id), int(model_config_id), int(chat_history), message)  # 回答
         return SuccessResponse("对话成功！",
                                {"conversation_id": conversation_id, "response": res}).to_json()
     except Exception as e:
