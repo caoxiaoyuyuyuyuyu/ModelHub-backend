@@ -65,7 +65,7 @@ class ChatService:
         return str(response)
 
     @staticmethod
-    def chat(user_id: int, conversation_id: int, model_config_id: int, chat_history: int, message: str) -> str:
+    def chat(vector_db_id: int, conversation_id: int, model_config_id: int, chat_history: int, message: str) -> str:
         """
         获取回答并保存
         :param conversation_id: 对话 id
@@ -77,13 +77,16 @@ class ChatService:
 
         model = get_chatllm(model_config_id) # 获取模型
         history = ChatMapper().get_history(conversation_id, chat_history) # 获取历史记录
+
+        print(type(history))
+        print(history)
+
         m_message = { # 组合
             "message": message,
             "history": history["messages"]
         }
-        vector_db_id = VectorService.get_vectordb_id(user_id) # 获取 vector_db_id
 
-        chat_content = VectorService.query_vectors(vector_db_id, m_message) # 检索
+        chat_content = VectorService.query_vectors(vector_db_id, m_message, chat_history) # 检索
         response = model.chat(chat_content) # 对话
         # 使用通用提取函数
         content = ChatService.extract_response_content(response)

@@ -52,14 +52,3 @@ class VectorMapper:
         except Exception as e:
             db.session.rollback()
             raise Exception(f"删除向量数据库失败: {str(e)}")
-    #
-    # @staticmethod
-    # def get_vectordb_id(user_id: int):
-    #     try:
-    #         vector_db = VectorDb.query.filter_by(user_id=user_id)
-    #         id_list = []
-    #         for item in vector_db:
-    #             id_list.append(vector_db.id)
-    #         return id_list
-    #     except Exception as e:
-    #         raise Exception(f"查询vectordb_id失败：{str(e)}")

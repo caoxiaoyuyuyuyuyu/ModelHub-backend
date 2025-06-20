@@ -48,6 +48,7 @@ def chat() -> str:
     user_id = request.headers.get("User-Id")
     model_config_id = request.form.get("model_config_id")
     chat_history = request.form.get("chat_history")
+    vector_db_id = request.form.get("vector_db_id")
 
     try:
         if not conversation_id: # 创建对话
@@ -55,7 +56,7 @@ def chat() -> str:
             conversation_id = id
 
         mes = ChatService.saveMessage(int(conversation_id), "user", str(message)) # 问题
-        res = ChatService.chat(int(user_id), int(conversation_id),
+        res = ChatService.chat(int(vector_db_id), int(conversation_id),
                                int(model_config_id), int(chat_history), message)  # 回答
         return SuccessResponse("对话成功！",
                                {"conversation_id": conversation_id, "response": res}).to_json()
