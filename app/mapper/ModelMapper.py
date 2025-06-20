@@ -19,7 +19,15 @@ class ModelMapper:
     # 使用id 查询 model_config
     @staticmethod
     def get_model_config_by_id(model_config_id: int):
-        return ModelConfig.query.get(model_config_id)
+        try:
+            config = ModelConfig.query.get(model_config_id)
+            if not config:
+                raise ValueError("model config not exist")
+            return config
+        except ValueError as ve:
+            raise ve
+        except Exception as e:
+            raise Exception(f"模型配置获取失败:{str(e)}")
 
     # 根据 user_id 得到 用户model_config列表
     @staticmethod

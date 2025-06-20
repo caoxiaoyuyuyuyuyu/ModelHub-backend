@@ -65,6 +65,28 @@ class ModelService:
         except Exception as e:
             raise Exception({'code': 500, 'msg': "获取公共配置失败"+str(e)})
 
+    # 根据config_id获取model_config
+    @staticmethod
+    def get_model_config_by_id(config_id: int):
+        try:
+            config = ModelMapper.get_model_config_by_id(config_id)
+            user_id = config.user_id
+            user = UserMapper.get_user_by_id(user_id)
+
+            base_model_id = config.base_model_id
+            base_model = ModelMapper.get_model_info_by_id(base_model_id)
+
+            return {
+                "id": config.id,
+                "name": config.name,
+                "author": user.name,
+                "base_model_name": base_model.model_name,
+                "describe": config.describe,
+                "update_at": config.update_at
+            }
+        except Exception as e:
+            raise Exception({'code': 500, 'msg': "获取模型配置失败"+str(e)})
+
     @staticmethod
     def get_user_config_by_id(user_id):
         try:

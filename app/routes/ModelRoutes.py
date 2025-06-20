@@ -34,6 +34,15 @@ def get_public_config():
         return error_500_print("Model error", e)
 
 
+@model_bp.route('/modelconfig/get/<int:config_id>')
+def get_config_by_id(config_id: int):
+    try:
+        config = ModelService.get_model_config_by_id(config_id)
+        return SuccessResponse("获取模型配置成功", config).to_json()
+    except Exception as e:
+        return error_500_print("Model error", e)
+
+
 @model_bp.route('/modelconfig/getuser/<int:user_id>', methods=['GET'])
 def get_user_config_by_id(user_id):
     try:
