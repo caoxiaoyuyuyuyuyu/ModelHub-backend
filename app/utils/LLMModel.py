@@ -1,4 +1,4 @@
-from typing import Optional, List, Any, Sequence
+from typing import Optional, List, Any, Sequence, Dict
 from llama_index.core.bridge.pydantic import Field, PrivateAttr
 from llama_index.core.constants import DEFAULT_CONTEXT_WINDOW, DEFAULT_NUM_OUTPUTS  # type ignore
 from llama_index.core.llms import (
@@ -12,6 +12,25 @@ from llama_index.core.llms import (
 )
 from openai import OpenAI
 
+
+# 将模型消息转换成字典
+def to_messages_dicts(messages: Sequence[ChatMessage]) -> List:
+    return [
+        {
+            "role": message.role.value,
+            "content": message.content
+        }
+        for message in messages
+    ]
+
+
+# 得到模型响应的额外信息
+def get_additional_kwargs(response) -> Dict:
+    return {
+        "token_counts": response.usage.total_tokens,
+        "prompt_tokens": response.usage.prompt_tokens,
+        "completion_tokens": response.usage.completion_tokens
+    }
 
 # 聊天模型类
 class ChatGLM(CustomLLM):
@@ -94,11 +113,27 @@ class ChatGLM(CustomLLM):
 
     # 聊天功能实现
     def chat(self, messages: Sequence[ChatMessage], **kwargs: Any) -> ChatResponse:
-        from .TransUtil import to_messages_dicts, get_additional_kwargs
-        if isinstance(messages, str):
-            messages = [ChatMessage(content=messages, role=MessageRole.USER)]
+        # if isinstance(messages, str):
+        #     messages = [ChatMessage(content=messages, role=MessageRole.USER)]
+        #
+        # message_dicts: List = to_messages_dicts(messages)
+        # 添加系统提示
+        system_message = [ChatMessage(
+            role=MessageRole.SYSTEM,
+            content=self.system_prompt
+        )]
 
-        message_dicts: List = to_messages_dicts(messages)
+        if isinstance(messages, str):
+            user_messages = [ChatMessage(
+                content=messages,
+                role=MessageRole.USER
+            )]
+        else:
+            user_messages = messages
+
+        # 合并消息
+        all_messages = system_message + user_messages
+        message_dicts = to_messages_dicts(all_messages)
         response = self._chat(message_dicts, stream=False)
 
         rsp = ChatResponse(
@@ -180,7 +215,7 @@ if __name__ == "__main__":
         model="qwen-plus",
         base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
         api_key="sk-1d8575bdb4ab4b64abde2da910ef578b",
-        system_prompt="你是一个高中女孩"
+        system_prompt="你是一个高中女孩，对面是你的班主任，你很想和班主任聊天，但你只能用中文，请用中文回答"
     )
     # messages = [ChatMessage(content="讲个简短的笑话", role=MessageRole("user"))]
     # res = test_llm.chat(messages) # 测试传入列表

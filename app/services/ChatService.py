@@ -1,9 +1,15 @@
+import logging
+
 from app.mapper.ChatMapper import ChatMapper
 from typing import List, Dict, Tuple
+from app.utils.TransUtil import get_chatllm
+from llama_index.core.llms import ChatMessage
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 class ChatService:
     @staticmethod
-    def create_conversation(user_id: int, model_config_id: int, chat_history: int) -> str:
+    def create_conversation(user_id: int, model_config_id: int, message: str) -> dict:
         """
         创建对话
         :param user_id: 用户 id
@@ -12,10 +18,10 @@ class ChatService:
         :return:
         """
         try:
-            res = ChatMapper().create_conversation(user_id, model_config_id, chat_history)
-            return res
+            name = message[:10]
+            return ChatMapper().create_conversation(user_id, name, model_config_id)
         except Exception as e:
-            return Exception({'code': 500, 'msg': "创建对话失败"+str(e)})
+            raise
 
     @staticmethod
     def _format_message_(role: str, message: str) -> dict:
@@ -26,16 +32,6 @@ class ChatService:
         :return: 返回字典 {"role": role, "content": message}
         """
         return {"role": role, "content": message}
-
-    @staticmethod
-    def saveMessage(conversation_id: int, role: str, message: str) -> str:
-        """
-        保存用户的问题
-        :param message: 用户的问题
-        :return: None
-        """
-        res = ChatMapper().save_message(conversation_id, role, message)
-        return res
 
     @staticmethod
     def extract_response_content(response: any) -> str:
@@ -64,7 +60,7 @@ class ChatService:
         return str(response)
 
     @staticmethod
-    def chat(conversation_id: int, model_config_id: int, message: str) -> str:
+    def chat(conversation_id: int, message: str) -> dict:
         """
         获取回答并保存
         :param conversation_id: 对话 id
@@ -72,15 +68,61 @@ class ChatService:
         :param message: 消息
         :return:
         """
-        from app.utils.TransUtil import get_chatllm
+        try:
+            ChatMapper.save_message(conversation_id, "user", message)
+            conversation = ChatMapper.get_conversation(conversation_id)
+            # logger.info(f"conversation: {conversation}")
+            conversation_info = conversation['conversation_info']
+            model_config_id = conversation_info['model_config_id']
+            history = conversation['history']["messages"]
+            # logger.info(f"history: {len(history)}")
+
+            chat_messages_list = []
+            for msg in reversed(history):
+                chat_messages_list.append(ChatMessage(role=msg['role'], content=msg['content']))
+                logger.info(f"{msg['role']}:{msg['content']}")
+            model = get_chatllm(model_config_id)
+            response = model.chat(chat_messages_list)
+            # 使用通用提取函数
+            content = ChatService.extract_response_content(response)
+            # 保存处理后的内容
+            res = ChatMapper.save_message(conversation_id, "assistant", content)
+            return {
+                "response": res,
+                "conversation_id": conversation_id,
+                "conversation_name": conversation_info['name']
+            }
+        except Exception as e:
+            raise
+    @staticmethod
+    def rechat(conversation_id: int) -> dict:
+        """
+        获取最新的一条消息
+        :param conversation_id: 对话 id
+        :return:
+        """
+        conversation = ChatMapper.get_conversation(conversation_id)
+        # logger.info(f"conversation: {conversation}")
+        conversation_info = conversation['conversation_info']
+        model_config_id = conversation_info['model_config_id']
+        history = conversation['history']["messages"]
+        # logger.info(f"history: {len(history)}")
+
+        chat_messages_list = []
+        for msg in reversed(history):
+            chat_messages_list.append(ChatMessage(role=msg['role'], content=msg['content']))
+        chat_messages_list.append(ChatMessage(role="user", content='重新回答'))
 
         model = get_chatllm(model_config_id)
-        response = model.chat(message)
-        # 使用通用提取函数
+        response = model.chat(chat_messages_list)
         content = ChatService.extract_response_content(response)
-        # 保存处理后的内容
-        res = ChatMapper().save_message(conversation_id, "assistant", content)
-        return res
+        res = ChatMapper.save_message(conversation_id, "assistant", content)
+        return {
+            "response": res,
+            "conversation_id": conversation_id,
+            "conversation_name": conversation_info['name']
+        }
+
 
     @staticmethod
     def get_conversation(user_id: int) -> List:

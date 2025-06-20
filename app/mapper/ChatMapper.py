@@ -1,15 +1,15 @@
 from app.utils.Redis import ConversationStore
-from typing import List, Dict, Tuple
+from typing import Dict
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.extensions import db
 
 class ChatMapper:
-    def __init__(self):
-        self.redis_client = ConversationStore().getRedis_client()
-        self.prefix = "chat:"  # 键前缀，用于区分不同类型的数据
+    redis_client = ConversationStore().getRedis_client()
+    prefix = "chat:"  # 键前缀，用于区分不同类型的数据
 
-    def create_conversation(self, user_id: int, model_config_id: int, chat_history: int) -> str:
+    @staticmethod
+    def create_conversation(user_id: int, name: str, model_config_id: int, chat_history: int = 10) -> dict:
         """
         创建对话
         :param user_id: 用户 id
@@ -18,24 +18,20 @@ class ChatMapper:
         :return:
         """
         try:
-            conversation = Conversation(user_id=user_id, model_config_id=model_config_id, chat_history=chat_history)
+            conversation = Conversation(user_id=user_id, name = name, model_config_id=model_config_id, chat_history=chat_history)
             db.session.add(conversation)
             db.session.commit()
             db.session.refresh(conversation)
-            return {
-                "user_id": conversation.user_id,
-                "model_config_id": conversation.model_config_id,
-                "chat_history": conversation.chat_history
-            }
+            return conversation.id
         except Exception as e:
             db.session.rollback()
             raise Exception("创建对话失败"+str(e))
-
-    def _format_key(self, conversation_id: str) -> str:
+    @staticmethod
+    def _format_key(conversation_id: int) -> str:
         """格式化对话键"""
-        return f"{self.prefix}{conversation_id}"
-
-    def save_message(self, conversation_id: int, role: str, content: str) -> str:
+        return f"{ChatMapper.prefix}{conversation_id}"
+    @staticmethod
+    def save_message(conversation_id: int, role: str, content: str) -> dict:
         """
         保存单条消息到对话历史
         :param conversation_id: 对话ID
@@ -44,7 +40,7 @@ class ChatMapper:
         :return: 返回消息的字符串
         """
         try:
-            key = self._format_key(conversation_id)
+            key = ChatMapper._format_key(conversation_id)
             # 使用JSON格式序列化消息，保留角色和内容
             message = {"role": role, "content": content}
              # 保存到数据库中
@@ -53,7 +49,7 @@ class ChatMapper:
             db.session.commit()
             db.session.refresh(message_db)
             # 保存到redis中
-            self.redis_client.rpush(key, str(message))
+            ChatMapper.redis_client.rpush(key, str(message))
             return {
                 "role": message_db.role,
                 "content": message_db.content
@@ -62,8 +58,8 @@ class ChatMapper:
             db.session.rollback()
             print(f"消息添加失败: {e}")
             raise Exception({"code": 500, "msg": "保存消息失败" + str(e)})
-
-    def get_conversation_id(self, user_id: int) -> list:
+    @staticmethod
+    def get_conversation_id(user_id: int) -> list:
         """
         根据用户 id 查询对话
         :param user_id: 用户 id
@@ -80,16 +76,16 @@ class ChatMapper:
             return conversation_id_list
         except Exception as e:
             raise Exception({"code":500, "msg":"查询错误！获取用户对话失败"+str(e)})
-
-    def get_conversation(self, conversation_id: int) -> dict:
+    @staticmethod
+    def get_conversation(conversation_id: int) -> dict:
         """
         获取对话历史
         :param conversation_id: 对话ID
         :return: 对话信息列表
         """
         try:
-            conversation_info = self.get_conversation_info(conversation_id)
-            history = self.get_history(conversation_id)
+            conversation_info = ChatMapper.get_conversation_info(conversation_id)
+            history = ChatMapper.get_history(conversation_id)
             return {
                 "conversation_info": conversation_info,
                 "history": history
@@ -97,8 +93,8 @@ class ChatMapper:
         except Exception as e:
             raise Exception({"code":500, "msg":"查询错误！获取用户对话失败"+str(e)})
 
-
-    def get_conversation_info(self, conversation_id: int) -> dict:
+    @staticmethod
+    def get_conversation_info(conversation_id: int) -> dict:
         """
         获取对话的信息
         :param conversation_id: 对话 id
@@ -117,7 +113,8 @@ class ChatMapper:
             raise Exception({"code":500, "msg":"获取对话信息失败！"+str(e)})
 
 
-    def get_history(self, conversation_id: int) -> dict:
+    @staticmethod
+    def get_history(conversation_id: int) -> dict:
         """
         获取单个对话的历史记录
         :param conversation_id: 对话 id
@@ -156,26 +153,30 @@ class ChatMapper:
             error_msg = f"查询对话 {conversation_id} 的历史记录失败: {str(e)}"
             raise Exception({"code": 500, "msg": error_msg})
 
-    def get_latest_message(self, conversation_id: str) -> Dict[str, str]:
+    @staticmethod
+    def get_latest_message(conversation_id: int) -> Dict[str, str]:
         """获取最新的一条消息"""
-        messages = self.get_conversation(conversation_id, -1, -1)
+        messages = ChatMapper.get_conversation(conversation_id)
         return messages[0] if messages else {}
 
-    def get_conversation_length(self, conversation_id: str) -> int:
+    @staticmethod
+    def get_conversation_length(conversation_id: int) -> int:
         """获取对话长度（消息数量）"""
-        key = self._format_key(conversation_id)
-        return self.redis_client.llen(key)
+        key = ChatMapper._format_key(conversation_id)
+        return ChatMapper.redis_client.llen(key)
 
-    def trim_conversation(self, conversation_id: str, max_length: int) -> None:
+    @staticmethod
+    def trim_conversation(conversation_id: int, max_length: int) -> None:
         """
         修剪对话历史，保留最近的max_length条消息
         :param conversation_id: 对话ID
         :param max_length: 保留的最大消息数
         """
-        key = self._format_key(conversation_id)
-        self.redis_client.ltrim(key, -max_length, -1)
+        key = ChatMapper._format_key(conversation_id)
+        ChatMapper.redis_client.ltrim(key, -max_length, -1)
 
-    def delete_conversation(self, conversation_id: int) -> int:
+    @staticmethod
+    def delete_conversation(conversation_id: int) -> int:
         """
         删除对话
         :param conversation_id:
@@ -183,19 +184,20 @@ class ChatMapper:
         """
         try:
             # 删除 redis 中的对话
-            key = self._format_key(conversation_id)
+            key = ChatMapper._format_key(conversation_id)
             # 删除数据库中的对话
             conversation = Conversation.query.get(conversation_id)
             if conversation:
                 Message.query.filter_by(conversation_id=conversation_id).delete()
                 db.session.delete(conversation)
                 db.session.commit()
-            return self.redis_client.delete(key)
+            return ChatMapper.redis_client.delete(key)
         except Exception as e:
             db.session.rollback()
             raise Exception({"code":500, "msg":"对话删除失败"+str(e)})
 
-    def set_chat_history(self, conversation_id: int, chat_history: int) -> str:
+    @staticmethod
+    def set_chat_history(conversation_id: int, chat_history: int) -> dict:
         """
         修改conversation.chat_history参数
         :param conversation_id:
