@@ -27,7 +27,7 @@ def handle_exception(e, default_error_code=500):
 @vector_bp.route('/create', methods=['POST'])
 @login_required
 def create_vector_db():
-    data = request.form
+    data = request.get_json()
     if not data or "name" not in data or "embedding_id" not in data:
         return ErrorResponse(400, "请求参数错误").to_json()
 
@@ -88,8 +88,7 @@ def get_vector_db(vector_db_id):
 @vector_bp.route('/update/<int:vector_db_id>', methods=['POST'])
 @login_required
 def update_vector_db(vector_db_id):
-    data = request.form
-
+    data = request.get_json()
     # 处理 document_similarity
     document_similarity_str = data.get('document_similarity')
     if document_similarity_str:
@@ -129,6 +128,9 @@ def update_vector_db(vector_db_id):
 @login_required
 def delete_vector_db(vector_db_id):
     try:
+        documents = Document.query.filter_by(vector_db_id=vector_db_id).all()
+        for document in documents:
+            VectorService.delete_file(document.id)
         if VectorService.delete_vector_db(vector_db_id):
             return SuccessResponse("删除成功").to_json()
         return ErrorResponse(404, "未找到该向量数据库").to_json()
@@ -148,6 +150,8 @@ def upload_file():
     if not files or all(file.filename == '' for file in files):
         return ErrorResponse(400, "未选择文件").to_json()
 
+    describe = request.form.get('describe', '')
+
     vector_db_id = request.form.get('vector_db_id')
     if not vector_db_id:
         return ErrorResponse(400, "未提供向量数据库ID").to_json()
@@ -159,11 +163,11 @@ def upload_file():
             document_id = VectorService.upload_file(
                 vector_db_id=vector_db_id,
                 file=file,
-                user_id=request.user.id  # 添加用户ID
+                user_id=request.user.id,  # 添加用户ID
+                describe=describe
             )
             if document_id:
                 document_ids.append(document_id)
-
         return SuccessResponse("文件上传成功", data={"document_ids": document_ids}).to_json()
     except Exception as e:
         return handle_exception(e)
@@ -245,3 +249,18 @@ def get_document(document_id):
         return ErrorResponse(404, "未找到该文件").to_json()
     except Exception as e:
         return handle_exception(e)
+
+@vector_bp.route('/connect/<int:vector_id>', methods=['GET'])
+@login_required
+def connect_vector(vector_id):
+    try:
+        VectorService.ensure_collection_exists(vector_id)
+        return SuccessResponse("连接成功").to_json()
+    except Exception as e:
+        return handle_exception(e)
+
+# @vector_bp.route('/query/<int:vector_id>', methods=['POST'])
+# @login_required
+# def query_vectors(vector_id):
+#     result = VectorService.query_vectors(vector_id, request.json.get('query_text'), request.json.get('n_results', 10))
+#     return SuccessResponse("查询成功", data=result).to_json()

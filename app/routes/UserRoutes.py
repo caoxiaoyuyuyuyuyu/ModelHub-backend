@@ -88,3 +88,11 @@ def get_user_info():
         # 打印错误信息到控制台
         print(f"Error: {code} - {msg}")
         return ErrorResponse(code, msg).to_json()
+
+@user_bp.route('/enterprise', methods=['GET'])
+def get_enterprise_users():
+    try:
+        users = UserService.get_enterprise_users()
+        return SuccessResponse("获取配置商成功", users).to_json()
+    except Exception as e:
+        return ErrorResponse(500, str(e)).to_json()

@@ -17,7 +17,7 @@ import time
 from llama_index.core import (
     SimpleDirectoryReader,
     VectorStoreIndex,
-    StorageContext
+    StorageContext, load_index_from_storage
 )
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from app.models.model_info import ModelInfo
@@ -29,7 +29,7 @@ logger = logging.getLogger("VectorService")
 MAX_RETRIES = 5
 RETRY_DELAY = 2
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB文件大小限制
-BASE_DOCS_DIR = "./data/vector_docs/"  # 文档存储基础目录
+BASE_DOCS_DIR = "data\\vector_docs\\"  # 文档存储基础目录
 
 
 class VectorService:
@@ -148,9 +148,9 @@ class VectorService:
     def delete_vector_db(vector_db_id):
         result = VectorMapper.delete_vector_db(vector_db_id)
         if result:
-            # 删除 ChromDB 集合
-            client = get_chromadb_client()
             try:
+                # 删除 ChromDB 集合
+                client = get_chromadb_client()
                 client.delete_collection(name=f"vector_db_{vector_db_id}")
                 logger.info(f"已删除ChromaDB集合: vector_db_{vector_db_id}")
             except ValueError:
@@ -220,7 +220,7 @@ class VectorService:
             return None
 
     @staticmethod
-    def upload_file(vector_db_id, file, user_id):  # 添加 user_id 参数
+    def upload_file(vector_db_id, file, user_id, describe):  # 添加 user_id 参数
         """上传文件并处理为向量存储 (使用 LlamaIndex + ChromaDB)"""
         filename = getattr(file, 'filename', 'unknown')
         logger.info(f"开始上传文件到向量数据库 {vector_db_id}: {filename}")
@@ -269,6 +269,8 @@ class VectorService:
             # 读取并处理文件
             documents = SimpleDirectoryReader(input_files=[save_path]).load_data()
             logger.info(f"成功加载 {len(documents)} 个文档片段")
+            for doc in documents:
+                print(f"文档元数据: {doc.metadata}")  # 查看默认元数据字段
 
             # 创建索引并存储
             index = VectorStoreIndex.from_documents(
@@ -276,8 +278,12 @@ class VectorService:
                 storage_context=storage_context,
                 embed_model=embedding_model
             )
-
-            logger.info(f"文件处理成功: {filename}，添加了 {len(documents)} 个文档片段")
+            nodes = storage_context.docstore.docs
+            for node_id, node in nodes.items():
+                print(f"Node ID: {node_id}")
+                print(f"Content: {node.text}")  # 文本内容
+                print(f"Metadata: {node.metadata}")  # 元数据
+                print("---")
 
             # 3. 保存文档信息到数据库
             file_extension = os.path.splitext(filename)[1]
@@ -287,11 +293,11 @@ class VectorService:
                 user_id=user_id,  # 使用传入的用户ID
                 vector_db_id=vector_db_id,
                 name=unique_filename,
+                describe=describe,
                 original_name=filename,
                 type=file_type,
                 size=os.path.getsize(save_path),
                 save_path=save_path,
-                describe=None
             )
 
             db.session.add(document)
@@ -339,7 +345,8 @@ class VectorService:
                 try:
                     collection = client.get_collection(name=collection_name)
                     # 假设向量集合中使用文件名作为ID
-                    collection.delete(ids=[document.name])
+                    collection.delete(where={"file_name": document.name})
+                    # collection.delete(ids=[document.name])
                 except Exception as e:
                     print(f"删除向量集合中的数据失败: {str(e)}")
 
@@ -396,6 +403,40 @@ class VectorService:
         collection_name = f"vector_db_{vector_db_id}"
         try:
             collection = client.get_collection(name=collection_name)
+            # 创建向量存储
+            vector_store = ChromaVectorStore(chroma_collection=collection)
+
+            # 初始化嵌入模型
+            embedding_model = ChatEmbeddings(
+                model="text-embedding-v3",
+                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+                api_key="sk-1d8575bdb4ab4b64abde2da910ef578b"
+            )
+
+            # 加载索引
+            index = VectorStoreIndex.from_vector_store(
+                vector_store=vector_store,
+                embed_model=embedding_model
+            )
+
+            # 创建查询引擎
+            retriever = index.as_retriever(similarity_top_k=n_results)
+            nodes = retriever.retrieve(query_text)
+
+            document_similarity = VectorMapper.get_vector_db(vector_db_id).document_similarity
+
+            res = []
+            for node in nodes:
+                if node.score < document_similarity:
+                    continue
+                file_name = node.metadata.get("file_name")
+                if file_name:
+                    document = Document.query.filter_by(name=file_name).first()
+                    if document:
+                        res.append({"text": node.text, "document_name": document.original_name, "score": node.score, "document_id": document.id})
+
+            # 执行查询
+            return res
         except Exception as e:
             logger.error(f"获取集合失败: {str(e)}")
             return None

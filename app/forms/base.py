@@ -20,7 +20,6 @@ class BaseResponse:
 
 class SuccessResponse(BaseResponse):
     def __init__(self, message: str = 'success', data: Any = None):
-        # super().__init__(data=data)
         super().__init__(code=200, message=message, data=data)  # 显式传递所有参数
 
 class ErrorResponse(BaseResponse):

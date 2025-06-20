@@ -100,7 +100,7 @@ def update_model_config():
     if not data:
         return ErrorResponse(400, "请求数据不能为空").to_json()
 
-    model_config_id = data.get("model_config_id")
+    model_config_id = data.get("id")
     share_id = data.get("share_id")
     base_model_id = data.get("base_model_id")
     name = data.get("name")
@@ -128,5 +128,14 @@ def update_model_config():
             describe=describe
         )
         return SuccessResponse("模型配置更新成功", config).to_json()
+    except Exception as e:
+        return error_500_print("Model error", e)
+
+
+@model_bp.route('/modelconfig/delete/<int:config_id>', methods=["DELETE"])
+def delete_model_config(config_id: int):
+    try:
+        config = ModelService.delete_model_config(config_id)
+        return SuccessResponse("模型配置删除成功", config).to_json()
     except Exception as e:
         return error_500_print("Model error", e)

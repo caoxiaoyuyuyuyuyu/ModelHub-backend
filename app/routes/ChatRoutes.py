@@ -75,7 +75,7 @@ def get_history() -> str:
         return ErrorResponse(400, "conversation_id is null").to_json()
     try:
         history = ChatService.get_history(int(conversation_id))
-        return SuccessResponse("历史记录获取成功！", {"history": history}).to_json()
+        return SuccessResponse("历史记录获取成功！", history).to_json()
     except Exception as e:
         return ErrorResponse(500, str(e)).to_json()
 
@@ -86,7 +86,7 @@ def get_conversation() -> str:
     获取对话的列表
     :return: 返回json格式的字符串
     """
-    user_id = request.headers.get('User-Id')
+    user_id = request.user.id
     if not user_id:
         return ErrorResponse(400, "user_id is null").to_json()
     try:

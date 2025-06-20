@@ -34,6 +34,8 @@ class VectorDb(db.Model):
             'id': self.id,
             'name': self.name,
             'describe': self.describe,
+            'embedding_id': self.embedding_id,
+            'document_similarity': self.document_similarity,
             'created_at': created_at_str,
             'updated_at': updated_at_str,
             'model_configs': model_configs,
