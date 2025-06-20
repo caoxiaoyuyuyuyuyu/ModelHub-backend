@@ -86,7 +86,7 @@ class ChatService:
             "history": history["messages"]
         }
 
-        chat_content = VectorService.query_vectors(vector_db_id, m_message, chat_history) # 检索
+        chat_content = VectorService.query_vectors(vector_db_id, str(m_message), chat_history) # 检索
         response = model.chat(chat_content) # 对话
         # 使用通用提取函数
         content = ChatService.extract_response_content(response)
