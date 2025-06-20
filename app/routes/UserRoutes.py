@@ -71,7 +71,7 @@ def test():
 @user_bp.route('/info', methods=['GET'])
 @login_required
 def get_user_info():
-    user_email = request.args.get('user_email')
+    user_email = request.user.email
     try:
         user = UserService.get_user_by_email(user_email)
         if not user:
@@ -96,3 +96,52 @@ def get_enterprise_users():
         return SuccessResponse("获取配置商成功", users).to_json()
     except Exception as e:
         return ErrorResponse(500, str(e)).to_json()
+
+
+import os
+from flask import send_from_directory, current_app, abort
+from werkzeug.utils import safe_join
+
+
+@user_bp.route('/avatar/<path:filename>', methods=['GET'])
+def get_avatar(filename):
+    """
+    提供用户头像文件（存储在应用外层的uploads文件夹）
+
+    参数:
+        filename: 头像文件名（可包含相对路径）
+
+    返回:
+        头像文件内容或404错误
+    """
+    uploads_dir = current_app.config['UPLOADS_DIR']
+
+    # 3. 使用Flask的safe_join确保路径安全
+    try:
+        safe_path = safe_join(uploads_dir, filename)
+    except ValueError:
+        # 路径不安全（尝试目录遍历）
+        current_app.logger.warning(f"非法路径访问尝试: {filename}")
+        abort(403)  # 禁止访问
+
+    # 4. 检查文件是否存在
+    if not os.path.isfile(safe_path):
+        # 5. 返回默认头像（如果存在）
+        default_avatar = os.path.join(uploads_dir, 'image.png')
+        if os.path.isfile(default_avatar):
+            return send_from_directory(uploads_dir, 'image.png')
+
+        # 6. 没有默认头像则返回404
+        abort(404)
+
+    # 7. 发送文件并设置缓存
+    response = send_from_directory(
+        uploads_dir,
+        filename,
+        conditional=True,  # 支持条件GET请求
+    )
+    # 防止浏览器将图片当作HTML执行
+    response.headers['Content-Disposition'] = 'inline'
+    # 防止点击劫持
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response

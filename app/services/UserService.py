@@ -1,4 +1,4 @@
-from app.mapper import UserMapper
+from app.mapper import UserMapper, ModelMapper, VectorMapper
 from app.utils import JwtUtil
 
 
@@ -14,6 +14,7 @@ class UserService:
             return {
                 "id": user.id,
                 "name": user.name,
+                "avatar": user.avatar,
                 "email": user.email,
                 "token": token
             }
@@ -30,6 +31,7 @@ class UserService:
             return {
                 "id": user.id,
                 "name": user.name,
+                "avatar": user.avatar,
                 "email": user.email,
                 "token": token
             }
@@ -38,7 +40,15 @@ class UserService:
 
     @staticmethod
     def get_user_by_email(user_email):
-        return UserMapper.get_user_by_email(user_email)
+        user = UserMapper.get_user_by_email(user_email)
+        if not user:
+            raise Exception({'code': 404, 'msg': "用户不存在"})
+        user_id = user.id
+
+        model_configs = ModelMapper.get_user_config_by_id(user_id)
+
+        vectorMapppper = VectorMapper
+
 
     @staticmethod
     def get_enterprise_users():
