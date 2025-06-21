@@ -9,6 +9,7 @@ class User(db.Model):
     __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
+    avatar  = db.Column(db.String(255), nullable=True)
     password = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(255), nullable=True)
     describe = db.Column(db.String(255), nullable=True)
@@ -29,6 +30,7 @@ class User(db.Model):
         return {
             'id': self.id,
             'name': self.name,
+            'avatar': self.avatar,
             'email': self.email,
             'describe': self.describe,
             'type': type_map[self.type],

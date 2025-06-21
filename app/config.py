@@ -49,3 +49,9 @@ class Config:
 
     # 添加 API 路径配置
     CHROMA_API_PATH = "/api/v1"  # 新版本 ChromaDB 使用 /api/v1
+
+    # 获取项目根目录 (Flask应用的上层目录)
+    PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+    # 上传目录路径
+    UPLOADS_DIR = os.path.join(PROJECT_ROOT, 'uploads')

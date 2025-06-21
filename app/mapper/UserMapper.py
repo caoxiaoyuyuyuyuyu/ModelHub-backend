@@ -56,3 +56,11 @@ class UserMapper:
     @staticmethod
     def get_enterprise_users():
         return User.query.filter_by(type=2).all()
+    @staticmethod
+    def get_user_info(user_email):
+        return User.query.filter_by(email=user_email).first()
+    @staticmethod
+    def update_user(user):
+        db.session.commit()
+        db.session.refresh(user)
+        return user
