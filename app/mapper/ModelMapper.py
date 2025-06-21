@@ -147,3 +147,10 @@ class ModelMapper:
         except Exception as e:
             db.session.rollback()
             raise Exception(f"模型配置删除失败:{str(e)}")
+
+    @staticmethod
+    def get_vector_db_id(config_id: int):
+        model_config = ModelConfig.query.get(config_id)
+        if not model_config:
+            raise ValueError("model config not exist")
+        return model_config.vector_db_id

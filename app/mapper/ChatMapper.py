@@ -9,7 +9,7 @@ class ChatMapper:
     prefix = "chat:"  # 键前缀，用于区分不同类型的数据
 
     @staticmethod
-    def create_conversation(user_id: int, name: str, model_config_id: int, chat_history: int = 10) -> dict:
+    def create_conversation(user_id: int, name: str, model_config_id: int, chat_history: int = 10) -> int:
         """
         创建对话
         :param user_id: 用户 id
@@ -43,7 +43,7 @@ class ChatMapper:
             key = ChatMapper._format_key(conversation_id)
             # 使用JSON格式序列化消息，保留角色和内容
             message = {"role": role, "content": content}
-             # 保存到数据库中
+            # 保存到数据库中
             message_db = Message(conversation_id=conversation_id, role=role, content=content)
             db.session.add(message_db)
             db.session.commit()

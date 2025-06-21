@@ -14,13 +14,16 @@ def chat() -> str:
     :return: 返回json格式的字符串
     """
     conversation_id_str = request.form.get("conversation_id")
-    conversation_id = int(conversation_id_str)
+    model_config_id = request.form.get("model_config_id")
+    conversation_id = None
+    if conversation_id_str:
+        conversation_id = int(conversation_id_str)
     message = request.form.get("message")
     user_id = request.user.id
     if not message:
         return ErrorResponse(400, "用户消息为空").to_json()
     try:
-        response = ChatService.chat(conversation_id, message)  # 回答
+        response = ChatService.chat(user_id, conversation_id, model_config_id, message)  # 回答
         return SuccessResponse("对话成功！", response).to_json()
     except Exception as e:
         return ErrorResponse(500, str(e)).to_json()

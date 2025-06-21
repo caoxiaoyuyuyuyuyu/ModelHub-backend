@@ -2,6 +2,9 @@ import logging
 
 from app.mapper.ChatMapper import ChatMapper
 from typing import List, Dict, Tuple
+
+from app.services import ModelService
+from app.services.VectorService import VectorService
 from app.utils.TransUtil import get_chatllm
 from llama_index.core.llms import ChatMessage
 
@@ -9,7 +12,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 class ChatService:
     @staticmethod
-    def create_conversation(user_id: int, model_config_id: int, message: str) -> dict:
+    def create_conversation(user_id: int, model_config_id: int | None, message: str) -> int:
         """
         创建对话
         :param user_id: 用户 id
@@ -19,9 +22,11 @@ class ChatService:
         """
         try:
             name = message[:10]
-            return ChatMapper().create_conversation(user_id, name, model_config_id)
+            if not model_config_id:
+                raise Exception({'code': 401, 'msg': "模型配置不存在"})
+            return ChatMapper.create_conversation(user_id, name, model_config_id)
         except Exception as e:
-            raise
+            raise e
 
     @staticmethod
     def _format_message_(role: str, message: str) -> dict:
@@ -60,7 +65,7 @@ class ChatService:
         return str(response)
 
     @staticmethod
-    def chat(conversation_id: int, message: str) -> dict:
+    def chat(user_id: int, conversation_id: int |  None, model_config_id, message: str) -> dict:
         """
         获取回答并保存
         :param conversation_id: 对话 id
@@ -69,18 +74,28 @@ class ChatService:
         :return:
         """
         try:
+            if not conversation_id:
+                if not model_config_id:
+                    raise Exception({'code': 401, 'msg': "模型配置不存在"})
+                conversation_id = ChatService.create_conversation(user_id, model_config_id, message)
+            if not conversation_id:
+                raise Exception({'code': 500, 'msg': "对话创建失败"})
             ChatMapper.save_message(conversation_id, "user", message)
+
             conversation = ChatMapper.get_conversation(conversation_id)
-            # logger.info(f"conversation: {conversation}")
+
             conversation_info = conversation['conversation_info']
             model_config_id = conversation_info['model_config_id']
             history = conversation['history']["messages"]
-            # logger.info(f"history: {len(history)}")
 
             chat_messages_list = []
             for msg in reversed(history):
                 chat_messages_list.append(ChatMessage(role=msg['role'], content=msg['content']))
-                logger.info(f"{msg['role']}:{msg['content']}")
+            contexts = ChatService.query_contexts(model_config_id,message)
+            context_result = "通过检索知识库已知：" + str(contexts) + "\n请根据检索结果和上下文回答用户问题，如果没有检索到知识，和用户说明情况"
+            if contexts:
+                chat_messages_list.append(ChatMessage(role="system", content=context_result))
+                # logger.info(f"{msg['role']}:{msg['content']}")
             model = get_chatllm(model_config_id)
             response = model.chat(chat_messages_list)
             # 使用通用提取函数
@@ -161,12 +176,15 @@ class ChatService:
         return res
 
     @staticmethod
-    def set_chat_history(conversation_id: int, chat_history: int) -> str:
+    def set_chat_history(conversation_id: int, chat_history: int) -> dict:
         """
         修改conversation.chat_history参数
         :param conversation_id: id
         :param chat_history:
         :return:
         """
-        res = ChatMapper().set_chat_history(conversation_id, chat_history)
+        res = ChatMapper.set_chat_history(conversation_id, chat_history)
         return res
+    @staticmethod
+    def query_contexts(model_config_id, message):
+        return VectorService.query_vector_by_model(model_config_id, message)

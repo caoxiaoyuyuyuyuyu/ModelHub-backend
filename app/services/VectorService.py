@@ -1,5 +1,5 @@
 # app/services/VectorService.py
-from app.mapper import VectorMapper
+from app.mapper import VectorMapper, ModelMapper
 from app.utils.chromadb_utils import get_chromadb_client
 from app.utils.EmbbedingModel import ChatEmbeddings
 from app.utils.file_utils import save_uploaded_file
@@ -420,3 +420,14 @@ class VectorService:
         except Exception as e:
             logger.error(f"向量查询失败: {str(e)}", exc_info=True)
             return None
+    @staticmethod
+    def query_vector_by_model(model_config_id, query_text, n_results=10):
+        try:
+            vector_db_id = ModelMapper.get_vector_db_id(model_config_id)
+            if vector_db_id is None:
+                logger.error("无法获取向量数据库ID")
+                return None
+        except Exception as e:
+            logger.error(f"获取向量数据库ID失败: {str(e)}")
+            return None
+        return VectorService.query_vectors(vector_db_id, query_text, n_results)
