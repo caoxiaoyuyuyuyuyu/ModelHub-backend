@@ -8,7 +8,6 @@ from app.models.document import Document
 from app.extensions import db
 from chromadb import HttpClient
 import chromadb.errors  # 新增导入
-from app.routes.VectorRoutes import request  # 导入 request 对象
 import logging
 import os
 import uuid

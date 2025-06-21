@@ -27,7 +27,7 @@ def save_uploaded_file(file, save_dir):
                 shutil.copyfileobj(file, f)
 
         logger.info(f"文件保存成功: {save_path}")
-        return save_path
+        return unique_filename
     except Exception as e:
         logger.error(f"文件保存失败: {str(e)}")
         return None
