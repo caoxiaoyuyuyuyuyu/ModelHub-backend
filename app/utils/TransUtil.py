@@ -4,6 +4,7 @@ from app.models.model_config import ModelConfig
 from app.models.model_info import ModelInfo
 from app.extensions import db
 from app.utils.LLMModel import ChatGLM
+from app.utils.EmbbedingModel import ChatEmbeddings
 
 
 # 将模型消息转换成字典
@@ -55,6 +56,24 @@ def get_chatllm(model_config_id: int):
             top_p=top_p
         )
         return ChatModel
+    except Exception as e:
+        raise Exception("聊天模型创建失败："+str(e))
+
+
+# 通过model_info_id获取嵌入模型
+def get_embedding(model_info_id: int):
+    model_info = ModelInfo.query.get(model_info_id)
+    if not model_info:
+        raise Exception("模型信息不存在")
+
+    try:
+        embedding_model = ChatEmbeddings(
+            model=model_info.model_name,
+            base_url=model_info.base_url,
+            api_key=model_info.api_key
+        )
+        return embedding_model
+
     except Exception as e:
         raise Exception("聊天模型创建失败："+str(e))
 

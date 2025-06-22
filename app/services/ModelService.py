@@ -16,6 +16,7 @@ class ModelService:
                     {
                         "id": info.id,
                         "model_name": info.model_name,
+                        "supplier": info.supplier,
                         "describe": info.describe,
                         "type": info.type
                     }
@@ -32,6 +33,7 @@ class ModelService:
             return {
                 "id": model_info.id,
                 "model_name": model_info.model_name,
+                "supplier": model_info.supplier,
                 "describe": model_info.describe,
                 "type": model_info.type
             }
@@ -57,6 +59,7 @@ class ModelService:
                         "name": config.name,
                         "author": user.name,
                         "base_model_name": base_model.model_name,
+                        "share_id": config.share_id,
                         "describe": config.describe,
                         "update_at": config.update_at
                     }
@@ -81,6 +84,7 @@ class ModelService:
                 "name": config.name,
                 "author": user.name,
                 "base_model_name": base_model.model_name,
+                "share_id": config.share_id,
                 "describe": config.describe,
                 "update_at": config.update_at
             }
@@ -93,21 +97,24 @@ class ModelService:
             config_list = ModelMapper.get_model_config_by_user_id(user_id)
             model_config_list = []
             for config in config_list:
-                user = UserMapper.get_user_by_id(user_id)
+                if config.is_private is False:
+                    user = UserMapper.get_user_by_id(user_id)
 
-                base_model_id = config.base_model_id
-                base_model = ModelMapper.get_model_info_by_id(base_model_id)
+                    base_model_id = config.base_model_id
+                    base_model = ModelMapper.get_model_info_by_id(base_model_id)
 
-                model_config_list.append(
-                    {
-                        "id": config.id,
-                        "name": config.name,
-                        "author": user.name,
-                        "base_model_name": base_model.model_name,
-                        "describe": config.describe,
-                        "update_at": config.update_at
-                    }
-                )
+                    model_config_list.append(
+                        {
+                            "id": config.id,
+                            "name": config.name,
+                            "author": user.name,
+                            "base_model_name": base_model.model_name,
+                            "share_id": config.share_id,
+                            "describe": config.describe,
+                            "update_at": config.update_at
+                        }
+                    )
+
             return model_config_list
         except Exception as e:
             raise Exception({'code': 500, 'msg': "获取用户配置失败"+str(e)})
@@ -125,6 +132,7 @@ class ModelService:
                         "name": config.name,
                         "describe": config.describe,
                         "base_model_id": config.base_model_id,
+                        "share_id": config.share_id,
                         "temperature": config.temperature,
                         "top_p": config.top_p,
                         "prompt": config.prompt,
