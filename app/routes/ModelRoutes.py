@@ -104,6 +104,7 @@ def create_model_config():
 
 
 @model_bp.route('/modelconfig/update', methods=['POST'])
+@login_required
 def update_model_config():
     data = request.get_json()
     if not data:
@@ -142,6 +143,7 @@ def update_model_config():
 
 
 @model_bp.route('/modelconfig/delete/<int:config_id>', methods=["DELETE"])
+@login_required
 def delete_model_config(config_id: int):
     try:
         config = ModelService.delete_model_config(config_id)

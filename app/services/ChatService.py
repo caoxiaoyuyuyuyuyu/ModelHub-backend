@@ -146,11 +146,11 @@ class ChatService:
         :param user_id: 用户 id
         :return: 返回历史信息的列表
         """
-        conversation_id_list = ChatMapper().get_conversation_id(user_id)
+        conversation_id_list = ChatMapper.get_conversation_id(user_id)
         histories = []
         for item in conversation_id_list:
             conversation_id = item["conversation_id"]
-            history = ChatMapper().get_conversation(conversation_id)
+            history = ChatMapper.get_conversation(conversation_id, 10)
             histories.append(history)
         return histories
 
@@ -162,8 +162,12 @@ class ChatService:
         :param end: 结束的位置，默认最后一条
         :return: 返回历史信息的字符串
         """
-        history = ChatMapper().get_history(conversation_id)
-        return history
+        conversation_info = ChatMapper.get_conversation_info(conversation_id)
+        history = ChatMapper.get_all_history(conversation_id)
+        return {
+            "conversation_info":conversation_info,
+            "history": history
+        }
 
     @staticmethod
     def delete_conversation(conversation_id: int) -> int:
