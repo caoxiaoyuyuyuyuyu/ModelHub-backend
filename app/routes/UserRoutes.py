@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from app.forms.base import ErrorResponse, SuccessResponse
 from app.services.UserService import UserService
 from app.utils.JwtUtil import login_required
+from app.utils.file_utils import save_uploaded_file
 
 user_bp = Blueprint('user', __name__, url_prefix='/user')
 
@@ -71,12 +72,12 @@ def test():
 @user_bp.route('/info', methods=['GET'])
 @login_required
 def get_user_info():
-    user_email = request.args.get('user_email')
+    user_email = request.user.email
     try:
         user = UserService.get_user_by_email(user_email)
         if not user:
             return ErrorResponse(404, "用户不存在").to_json()
-        return SuccessResponse("获取成功", user.to_dict()).to_json()
+        return SuccessResponse("获取成功", user).to_json()
     except Exception as e:
         # 打印错误信息便于调试
         print(f"Login error: {str(e)}")
@@ -88,3 +89,72 @@ def get_user_info():
         # 打印错误信息到控制台
         print(f"Error: {code} - {msg}")
         return ErrorResponse(code, msg).to_json()
+
+@user_bp.route('/enterprise', methods=['GET'])
+def get_enterprise_users():
+    try:
+        users = UserService.get_enterprise_users()
+        return SuccessResponse("获取配置商成功", users).to_json()
+    except Exception as e:
+        return ErrorResponse(500, str(e)).to_json()
+
+
+import os
+from flask import send_from_directory, current_app, abort
+from werkzeug.utils import safe_join, secure_filename
+
+
+@user_bp.route('/avatar/<path:filename>', methods=['GET'])
+def get_avatar(filename):
+    """
+    提供用户头像文件（存储在应用外层的uploads文件夹）
+
+    参数:
+        filename: 头像文件名（可包含相对路径）
+
+    返回:
+        头像文件内容或404错误
+    """
+    uploads_dir = current_app.config['UPLOADS_DIR']
+
+    # 3. 使用Flask的safe_join确保路径安全
+    try:
+        safe_path = safe_join(uploads_dir, filename)
+    except ValueError:
+        # 路径不安全（尝试目录遍历）
+        current_app.logger.warning(f"非法路径访问尝试: {filename}")
+        abort(403)  # 禁止访问
+
+    # 4. 检查文件是否存在
+    if not os.path.isfile(safe_path):
+        # 5. 返回默认头像（如果存在）
+        default_avatar = os.path.join(uploads_dir, 'image.png')
+        if os.path.isfile(default_avatar):
+            return send_from_directory(uploads_dir, 'image.png')
+
+        # 6. 没有默认头像则返回404
+        abort(404)
+
+    # 7. 发送文件并设置缓存
+    response = send_from_directory(
+        uploads_dir,
+        filename,
+        conditional=True,  # 支持条件GET请求
+    )
+    # 防止浏览器将图片当作HTML执行
+    response.headers['Content-Disposition'] = 'inline'
+    # 防止点击劫持
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+@user_bp.route('/avatar', methods=['PUT'])
+@login_required
+def update_avatar():
+    file = request.files.get('file')
+    if not file:
+        return ErrorResponse(400, "请上传文件").to_json()
+    save_path = save_uploaded_file(file, current_app.config['UPLOADS_DIR'])
+    if not save_path:
+        return ErrorResponse(500, "文件保存失败").to_json()
+    avatar = UserService.update_avatar(request.user.id, save_path)
+    return SuccessResponse("更新成功", avatar).to_json()

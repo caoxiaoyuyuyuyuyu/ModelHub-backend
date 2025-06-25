@@ -47,6 +47,7 @@ def verify_jwt(token: str):
         return {'error': 'Token expired'}
     except jwt.InvalidTokenError:
         return {'error': 'Invalid token'}
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):

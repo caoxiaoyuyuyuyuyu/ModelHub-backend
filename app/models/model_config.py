@@ -14,7 +14,8 @@ class ModelConfig(db.Model):
     temperature = db.Column(db.Numeric(10, 2), default=decimal.Decimal('0.70'), nullable=False)
     top_p = db.Column(db.Numeric(10, 2), default=decimal.Decimal('0.70'), nullable=False)
     prompt = db.Column(db.Text, nullable=True)
-    vector_db_id = db.Column(db.Integer, db.ForeignKey('vector_db.id'))
+    describe = db.Column(db.String(255), nullable=True)
+    vector_db_id = db.Column(db.Integer, db.ForeignKey('vector_db.id'), nullable=False)
     create_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     update_at = db.Column(
         db.DateTime,
@@ -33,3 +34,22 @@ class ModelConfig(db.Model):
         db.Index('idx_model_config_user_id', user_id),
         db.Index('idx_model_config_vector_db_id', vector_db_id),
     )
+
+    def to_dict(self):
+        create_at_str = self.create_at.strftime('%Y-%m-%d %H:%M:%S') if self.create_at else None
+        update_at_str = self.update_at.strftime('%Y-%m-%d %H:%M:%S') if self.update_at else None
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'share_id': self.share_id,
+            'base_model_id': self.base_model_id,
+            'name': self.name,
+            'temperature': float(self.temperature),
+            'top_p': float(self.top_p),
+            'prompt': self.prompt,
+            'describe': self.describe,
+            'vector_db_id': self.vector_db_id,
+            'create_at': create_at_str,
+            'update_at': update_at_str,
+            'is_private': self.is_private
+        }

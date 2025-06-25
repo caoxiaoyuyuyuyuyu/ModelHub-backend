@@ -1,13 +1,19 @@
 from app.extensions import db
 
+type_map = {
+    1:  'Individual',
+    2:  'Enterprise',
+}
 
 class User(db.Model):
     __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
+    avatar  = db.Column(db.String(255), nullable=True)
     password = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(255), nullable=True)
     describe = db.Column(db.String(255), nullable=True)
+    type = db.Column(db.Integer, nullable=True)
     create_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     update_at = db.Column(
         db.DateTime,
@@ -24,8 +30,10 @@ class User(db.Model):
         return {
             'id': self.id,
             'name': self.name,
+            'avatar': self.avatar,
             'email': self.email,
             'describe': self.describe,
+            'type': type_map[self.type],
             'create_at': self.create_at,
             'update_at': self.update_at,
         }

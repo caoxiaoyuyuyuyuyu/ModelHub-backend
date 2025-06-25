@@ -104,12 +104,13 @@ def create_model_config():
 
 
 @model_bp.route('/modelconfig/update', methods=['POST'])
+@login_required
 def update_model_config():
     data = request.get_json()
     if not data:
         return ErrorResponse(400, "请求数据不能为空").to_json()
 
-    model_config_id = data.get("model_config_id")
+    model_config_id = data.get("id")
     share_id = data.get("share_id")
     base_model_id = data.get("base_model_id")
     name = data.get("name")
@@ -142,6 +143,7 @@ def update_model_config():
 
 
 @model_bp.route('/modelconfig/delete/<int:config_id>', methods=["DELETE"])
+@login_required
 def delete_model_config(config_id: int):
     try:
         config = ModelService.delete_model_config(config_id)

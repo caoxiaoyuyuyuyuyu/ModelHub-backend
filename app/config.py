@@ -37,3 +37,21 @@ class Config:
     secret_key = os.getenv("SECRET_KEY", "your-secret-key-here")
     algorithm = os.getenv("ALGORITHM", "HS256")
     access_token_expire_minutes = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
+
+    # 嵌入模型配置
+    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-v3")
+    EMBEDDING_BASE_URL = os.getenv("EMBEDDING_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
+    EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY", "sk-1d8575bdb4ab4b64abde2da910ef578b")
+
+    # ChromaDB 配置
+    CHROMA_SERVER_HOST = "localhost"  # 如果使用 Docker 改为 "host.docker.internal"
+    CHROMA_SERVER_PORT = 8000
+
+    # 添加 API 路径配置
+    CHROMA_API_PATH = "/api/v1"  # 新版本 ChromaDB 使用 /api/v1
+
+    # 获取项目根目录 (Flask应用的上层目录)
+    PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+    # 上传目录路径
+    UPLOADS_DIR = os.path.join(PROJECT_ROOT, 'uploads')
