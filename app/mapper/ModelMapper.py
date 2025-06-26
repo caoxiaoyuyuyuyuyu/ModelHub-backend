@@ -154,3 +154,6 @@ class ModelMapper:
         if not model_config:
             raise ValueError("model config not exist")
         return model_config.vector_db_id
+    @staticmethod
+    def get_share_model_config(share_id: str):
+        return ModelConfig.query.filter(ModelConfig.share_id == share_id).first()

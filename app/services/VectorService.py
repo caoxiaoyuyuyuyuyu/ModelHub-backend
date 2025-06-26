@@ -1,5 +1,6 @@
 # app/services/VectorService.py
 from app.mapper import VectorMapper, ModelMapper
+from app.utils.TransUtil import get_embedding
 from app.utils.chromadb_utils import get_chromadb_client
 from app.utils.EmbbedingModel import ChatEmbeddings
 from app.utils.file_utils import save_uploaded_file
@@ -32,7 +33,6 @@ BASE_DOCS_DIR = "data\\vector_docs\\"  # 文档存储基础目录
 
 
 class VectorService:
-    # ... [保持 create_chroma_collection, create_vector_db 等方法不变] ...
     @staticmethod
     async def create_chroma_collection(vector_db_id):
         client = get_chromadb_client()
@@ -259,11 +259,10 @@ class VectorService:
             storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
             # 初始化嵌入模型
-            embedding_model = ChatEmbeddings(
-                model="text-embedding-v3",
-                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-                api_key="sk-1d8575bdb4ab4b64abde2da910ef578b"
-            )
+            model_info_id = VectorMapper.get_vector_db(vector_db_id).embedding_id
+            if not model_info_id:
+                raise Exception("模型配置ID为空")
+            embedding_model = get_embedding(model_info_id)
 
             # 读取并处理文件
             documents = SimpleDirectoryReader(input_files=[save_path]).load_data()
@@ -387,11 +386,10 @@ class VectorService:
             vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 
             # 初始化嵌入模型
-            embedding_model = ChatEmbeddings(
-                model="text-embedding-v3",
-                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-                api_key="sk-1d8575bdb4ab4b64abde2da910ef578b"
-            )
+            model_info_id = VectorMapper.get_vector_db(vector_db_id).embedding_id
+            if not model_info_id:
+                raise Exception("模型配置ID为空")
+            embedding_model = get_embedding(model_info_id)
 
             # 加载索引
             index = VectorStoreIndex.from_vector_store(
@@ -431,3 +429,29 @@ class VectorService:
             logger.error(f"获取向量数据库ID失败: {str(e)}")
             return None
         return VectorService.query_vectors(vector_db_id, query_text, n_results)
+
+    @staticmethod
+    def get_document_file(document_id):
+        """获取文档文件信息，包括文件路径和原始文件名"""
+        try:
+            document = Document.query.get(document_id)
+            if not document:
+                logger.error(f"未找到文档记录: {document_id}")
+                return None, None
+
+            file_path = document.save_path
+            original_name = document.original_name
+
+            # 确保路径是绝对路径
+            if not os.path.isabs(file_path):
+                file_path = os.path.abspath(file_path)
+
+            # 检查文件是否存在
+            if not os.path.isfile(file_path):
+                logger.error(f"文件不存在: {file_path}")
+                return None, None
+
+            return file_path, original_name
+        except Exception as e:
+            logger.error(f"获取文档文件信息失败: {str(e)}", exc_info=True)
+            return None, None

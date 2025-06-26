@@ -5,6 +5,7 @@ __pycache__/
 .idea/
 chroma_data/
 chroma.log
+data/
 
 # C extensions
 *.so

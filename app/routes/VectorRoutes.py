@@ -1,5 +1,7 @@
 # ModelHub-backend/app/routes/VectorRoutes.py
-from flask import Blueprint, request
+import os
+
+from flask import Blueprint, request, current_app, send_file, send_from_directory
 from app.forms.base import ErrorResponse, SuccessResponse
 from app.services.VectorService import VectorService
 from app.utils.JwtUtil import login_required
@@ -220,3 +222,36 @@ def connect_vector(vector_id):
 def query_vectors(vector_id):
     result = VectorService.query_vectors(vector_id, request.json.get('query_text'), request.json.get('n_results', 10))
     return SuccessResponse("查询成功", data=result).to_json()
+
+
+from werkzeug.utils import safe_join
+from urllib.parse import quote
+
+
+@vector_bp.route('/download_file/<int:document_id>', methods=['GET'])
+@login_required
+def download_file(document_id):
+    try:
+        # 获取完整文件路径和原始文件名
+        file_path, original_name = VectorService.get_document_file(document_id)
+
+        if not file_path or not original_name:
+            return ErrorResponse(404, "未找到该文件或文件不存在").to_json()
+
+        # 对文件名进行URL编码（处理中文等特殊字符）
+        safe_filename = quote(original_name)
+
+        # 使用send_file发送文件
+        response = send_file(
+            file_path,
+            as_attachment=True,
+            download_name=original_name,  # 原始文件名
+            conditional=True
+        )
+
+        # 设置Content-Disposition头部（关键修复）
+        response.headers['Content-Disposition'] = f"attachment; filename*=UTF-8''{safe_filename}"
+
+        return response
+    except Exception as e:
+        return handle_exception(e)

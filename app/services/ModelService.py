@@ -243,4 +243,18 @@ class ModelService:
             }
         except Exception as e:
             raise Exception({'code': 500, 'msg': "删除模型配置失败"+str(e)})
-
+    @staticmethod
+    def get_share_model_config(share_id :  str):
+        config = ModelMapper.get_share_model_config(share_id)
+        return {
+            "id": config.id,
+            "share_id": config.share_id,
+            "base_model_id": config.base_model_id,
+            "name": config.name,
+            "temperature": config.temperature,
+            "top_p": config.top_p,
+            "prompt": config.prompt,
+            "vector_db_id": config.vector_db_id,
+            "create_at": config.create_at,
+            "update_at": config.update_at,
+        }

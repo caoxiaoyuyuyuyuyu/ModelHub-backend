@@ -150,3 +150,16 @@ def delete_model_config(config_id: int):
         return SuccessResponse("模型配置删除成功", config).to_json()
     except Exception as e:
         return error_500_print("Model error", e)
+
+@model_bp.route('/modelconfig/getshare', methods=["POST"])
+@login_required
+def get_share_model_config():
+    try:
+        data = request.get_json()
+        share_id = data.get("share_id")
+        if not share_id:
+            return ErrorResponse(400, "share_id is null").to_json()
+        config = ModelService.get_share_model_config(share_id)
+        return SuccessResponse("获取模型配置成功", config).to_json()
+    except Exception as e:
+        return error_500_print("Model error", e)
