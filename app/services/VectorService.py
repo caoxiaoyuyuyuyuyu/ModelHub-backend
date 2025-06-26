@@ -20,6 +20,7 @@ from llama_index.core import (
     StorageContext, load_index_from_storage
 )
 from llama_index.vector_stores.chroma import ChromaVectorStore
+from app.models.model_info import ModelInfo
 
 # 初始化日志
 logging.basicConfig(level=logging.INFO)
@@ -374,17 +375,36 @@ class VectorService:
             logger.error(f"获取用户向量数据库列表失败: {str(e)}")
             return []
     @staticmethod
-    def query_vectors(vector_db_id, query_text, n_results=10):
-        """查询向量数据库 (使用 LlamaIndex)"""
-        # 获取 ChromaDB 集合
-        chroma_collection = VectorService.get_chroma_collection(vector_db_id)
-        if not chroma_collection:
-            logger.error("无法获取 ChromaDB 集合")
+    def query_vectors(vector_db_id, query_text, n_results):
+        vector_db = VectorMapper.get_vector_db(vector_db_id)
+        if not vector_db:
+            logger.error(f"未找到向量数据库: {vector_db_id}")
             return None
 
+        # 根据 embedding_id 从 ModelInfo 表中获取模型信息
+        model_info = ModelInfo.query.get(vector_db.embedding_id)
+        if not model_info:
+            logger.error(f"未找到对应的嵌入模型信息: {vector_db.embedding_id}")
+            return None
+
+        # 使用获取到的模型信息创建 ChatEmbeddings 对象
+        embedding_model = ChatEmbeddings(
+            model=model_info.model_name,
+            api_key=model_info.api_key,
+            base_url=model_info.base_url
+        )
+
+        # 以下是原 query_vectors 方法的其他逻辑
+        client = get_chromadb_client()
+        if not client:
+            logger.error("无法获取 ChromaDB 客户端")
+            return None
+
+        collection_name = f"vector_db_{vector_db_id}"
         try:
+            collection = client.get_collection(name=collection_name)
             # 创建向量存储
-            vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+            vector_store = ChromaVectorStore(chroma_collection=collection)
 
             # 初始化嵌入模型
             embedding_model = ChatEmbeddings(
@@ -418,16 +438,16 @@ class VectorService:
             # 执行查询
             return res
         except Exception as e:
-            logger.error(f"向量查询失败: {str(e)}", exc_info=True)
+            logger.error(f"获取集合失败: {str(e)}")
             return None
-    @staticmethod
-    def query_vector_by_model(model_config_id, query_text, n_results=10):
-        try:
-            vector_db_id = ModelMapper.get_vector_db_id(model_config_id)
-            if vector_db_id is None:
-                logger.error("无法获取向量数据库ID")
-                return None
-        except Exception as e:
-            logger.error(f"获取向量数据库ID失败: {str(e)}")
-            return None
-        return VectorService.query_vectors(vector_db_id, query_text, n_results)
+
+        # 获取查询文本的嵌入向量
+        query_embedding = embedding_model.get_general_text_embedding(query_text)
+
+        # 查询向量
+        results = collection.query(
+            query_embeddings=[query_embedding],
+            n_results=n_results
+        )
+
+        return results

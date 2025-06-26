@@ -6,6 +6,7 @@ from app.utils.JwtUtil import login_required
 
 chat_bp = Blueprint('chat', __name__, url_prefix='/chat')
 
+
 @chat_bp.route("/", methods=['POST'])
 @login_required
 def chat() -> str:
@@ -13,18 +14,24 @@ def chat() -> str:
     对话
     :return: 返回json格式的字符串
     """
-    conversation_id_str = request.form.get("conversation_id")
-    model_config_id = request.form.get("model_config_id")
-    conversation_id = None
-    if conversation_id_str:
-        conversation_id = int(conversation_id_str)
+    conversation_id = request.form.get("conversation_id")
     message = request.form.get("message")
-    user_id = request.user.id
-    if not message:
-        return ErrorResponse(400, "用户消息为空").to_json()
+
+    user_id = request.headers.get("User-Id")
+    model_config_id = request.form.get("model_config_id")
+    chat_history = request.form.get("chat_history")
+    vector_db_id = request.form.get("vector_db_id")
+
     try:
-        response = ChatService.chat(user_id, conversation_id, model_config_id, message)  # 回答
-        return SuccessResponse("对话成功！", response).to_json()
+        if not conversation_id: # 创建对话
+            id = ChatService.create_conversation(int(user_id), int(model_config_id), int(chat_history))
+            conversation_id = id
+
+        mes = ChatService.saveMessage(int(conversation_id), "user", str(message)) # 问题
+        res = ChatService.chat(int(vector_db_id), int(conversation_id),
+                               int(model_config_id), int(chat_history), message)  # 回答
+        return SuccessResponse("对话成功！",
+                               {"conversation_id": conversation_id, "response": res}).to_json()
     except Exception as e:
         return ErrorResponse(500, str(e)).to_json()
 

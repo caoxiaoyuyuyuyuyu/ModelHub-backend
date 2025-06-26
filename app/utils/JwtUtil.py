@@ -69,6 +69,8 @@ def login_required(f):
         payload = verify_jwt(token)
         if 'error' in payload:
             return ErrorResponse(code=401, message=payload['error']).to_json()
+        payload = verify_jwt(token)
+
         request.user = User(id=payload['id'], name=payload['name'], email=payload['email'])
         return f(*args, **kwargs)
     return decorated_function

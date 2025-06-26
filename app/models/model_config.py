@@ -13,6 +13,10 @@ class ModelConfig(db.Model):
     name = db.Column(db.String(255), nullable=False)
     temperature = db.Column(db.Numeric(10, 2), default=decimal.Decimal('0.70'), nullable=False)
     top_p = db.Column(db.Numeric(10, 2), default=decimal.Decimal('0.70'), nullable=False)
+
+    # vector_db_id = db.Column(db.Integer, db.ForeignKey('vector_db.id'))
+    #top_k = db.Column(db.Integer, default=50, nullable=False)
+
     prompt = db.Column(db.Text, nullable=True)
     describe = db.Column(db.String(255), nullable=True)
     vector_db_id = db.Column(db.Integer, db.ForeignKey('vector_db.id'), nullable=False)
