@@ -1,2 +1,3 @@
+# app/mapper/__init__.py
 from .UserMapper import UserMapper
-from .VectorMapper import VectorMapper  # 新增导入
+from .VectorMapper import VectorMapper

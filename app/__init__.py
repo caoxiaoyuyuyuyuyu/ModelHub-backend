@@ -24,9 +24,11 @@ def create_app(config_class=Config):
         db.create_all()
 
     # 注册蓝图
-    from .routes import user_bp, vector_bp
+    from .routes import user_bp, vector_bp,finetuning_bp
 
     app.register_blueprint(user_bp)
     app.register_blueprint(vector_bp)
+    app.register_blueprint(finetuning_bp)  # 新增注册 finetuning_bp
+
 
     return app
