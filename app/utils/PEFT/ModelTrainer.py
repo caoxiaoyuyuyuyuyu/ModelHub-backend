@@ -23,7 +23,8 @@ class ModelTrainer:
             torch_dtype=torch.bfloat16
         )
         model = prepare_model_for_kbit_training(model)
-        model = get_peft_model(model, peft_config)
+        if peft_config:
+            model = get_peft_model(model, peft_config)
         return model
     @staticmethod
     def load_tokenizer(model_path):
@@ -108,38 +109,74 @@ class ModelTrainer:
 
         with open(log_path, "w", encoding="utf-8") as f:
             json.dump(trainer.state.log_history, f, indent=2)  # 格式化保存
-if __name__ == "__main__":
-    # 加载数据
-    dataset = DataLoader.load_data(r"D:\Projects\PEFT\dialogue_data.json", "dialogue")
-    # 训练
+
+def finetune(base_model_path, file_path, data_type, output_dir, log_path, **kwargs):
+    dataset = DataLoader.load_data(file_path, data_type)
     # 配置4-bit量化和LoRA
     bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,
+        load_in_4bit=kwargs.get("load_in_4bit", True),
         bnb_4bit_quant_type="nf4",
         bnb_4bit_compute_dtype=torch.bfloat16,
         # bnb_4bit_use_double_quant=True,
     )
-
-    peft_config = LoraConfig(
-        r=8,
-        lora_alpha=32,
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
-        lora_dropout=0.05,
-        bias="none",
-        task_type="CAUSAL_LM"
-    )
-    # 训练参数配置
+    if kwargs.get("use_lora", True):
+        peft_config = LoraConfig(
+            r=kwargs.get("lora_r", 8),
+            lora_alpha=kwargs.get("lora_alpha", 32),
+            target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+            lora_dropout=kwargs.get("lora_dropout", 0.05),
+            bias="none",
+            task_type="CAUSAL_LM"
+        )
+    else:
+        peft_config = None
     training_args = TrainingArguments(
-        output_dir="./dialogue_finetuned",
+        output_dir=output_dir,
         per_device_train_batch_size=2,
-        gradient_accumulation_steps=4,
+        gradient_accumulation_steps=kwargs.get("gradient_accumulation_steps", 4),
         learning_rate=2e-5,
-        num_train_epochs=3,
-        logging_steps=10,
-        save_strategy="epoch",
-        fp16=True,
-        optim="paged_adamw_8bit"
+        num_train_epochs=kwargs.get("num_train_epochs", 3),
+        logging_steps=kwargs.get("logging_steps", 10),
+        save_strategy=kwargs.get("save_strategy", "epoch"),
+        fp16=kwargs.get("fp16", True),
+        optim=kwargs.get("optim", "paged_adamw_8bit")
     )
-    output_dir = "./dialogue_finetuned_lora"
-    log_path = "./training_logs.json"
-    ModelTrainer.train(r"D:\Projects\PEFT\Qwen\Qwen1.5-1.8B-Chat", dataset, "dialogue", bnb_config,  peft_config, training_args, output_dir, log_path)
+    ModelTrainer.train(base_model_path, dataset, data_type, bnb_config, peft_config, training_args, output_dir, log_path)
+
+
+if __name__ == "__main__":
+    # # 加载数据
+    # dataset = DataLoader.load_data(r"D:\Projects\PEFT\dialogue_data.json", "dialogue")
+    # # 训练
+    # # 配置4-bit量化和LoRA
+    # bnb_config = BitsAndBytesConfig(
+    #     load_in_4bit=True,
+    #     bnb_4bit_quant_type="nf4",
+    #     bnb_4bit_compute_dtype=torch.bfloat16,
+    #     # bnb_4bit_use_double_quant=True,
+    # )
+    #
+    # peft_config = LoraConfig(
+    #     r=8,
+    #     lora_alpha=32,
+    #     target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+    #     lora_dropout=0.05,
+    #     bias="none",
+    #     task_type="CAUSAL_LM"
+    # )
+    # # 训练参数配置
+    # training_args = TrainingArguments(
+    #     output_dir="./dialogue_finetuned",
+    #     per_device_train_batch_size=2,
+    #     gradient_accumulation_steps=4,
+    #     learning_rate=2e-5,
+    #     num_train_epochs=3,
+    #     logging_steps=10,
+    #     save_strategy="epoch",
+    #     fp16=True,
+    #     optim="paged_adamw_8bit"
+    # )
+    # output_dir = "./dialogue_finetuned_lora"
+    # log_path = "./training_logs.json"
+    # ModelTrainer.train(r"D:\Projects\PEFT\Qwen\Qwen1.5-1.8B-Chat", dataset, "dialogue", bnb_config,  peft_config, training_args, output_dir, log_path)
+    finetune(r"D:\Projects\PEFT\Qwen\Qwen1.5-1.8B-Chat", r"D:\Projects\PEFT\dialogue_data.json", "dialogue", "./dialogue_finetuned_lora", "./training_logs.json", load_in_4bit=True, use_lora=True)
