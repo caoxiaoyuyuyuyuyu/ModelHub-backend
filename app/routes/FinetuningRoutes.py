@@ -94,7 +94,8 @@ def get_finetuning_record(id):
 @login_required
 def get_list(model_name):
     try:
-        instances = FinetuningService.get_list(model_name)
+        user_id = request.user.id
+        instances = FinetuningService.get_list(model_name, user_id)
         instance_list = [instance.to_dict() for instance in instances]
         return SuccessResponse("查询成功", instance_list).to_json()
     except Exception as e:

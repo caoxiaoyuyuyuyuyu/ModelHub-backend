@@ -56,13 +56,13 @@ class FinetuningService:
         return FinetuningMapper.delete(model_class, id)
 
     @staticmethod
-    def get_list(model_name):
+    def get_list(model_name, user_id):
         model_class = {
-
             'finetuning_model': FinetuningModel,
             'pre_finetuning_model': PreFinetuningModel,
-
         }.get(model_name)
         if not model_class:
             raise ValueError("无效的模型名称")
+        if model_name == 'finetuning_model':
+            return FinetuningMapper.get_list(model_class, user_id)
         return FinetuningMapper.get_list(model_class)

@@ -53,9 +53,12 @@ class FinetuningMapper:
             raise Exception(f"删除记录失败: {str(e)}")
 
     @staticmethod
-    def get_list(model_class):
+    def get_list(model_class, user_id=None):
         try:
-            instances = model_class.query.all()
+            if model_class == FinetuningModel and user_id is not None:
+                instances = model_class.query.filter_by(user_id=user_id).all()
+            else:
+                instances = model_class.query.all()
             return instances
         except Exception as e:
             raise Exception(f"获取记录列表失败: {str(e)}")
