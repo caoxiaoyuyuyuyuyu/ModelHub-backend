@@ -89,3 +89,13 @@ def get_finetuning_record(id):
         return ErrorResponse(404, "未找到该记录").to_json()
     except Exception as e:
         return handle_exception(e)
+
+@finetuning_bp.route('/<model_name>/list', methods=['GET'])
+@login_required
+def get_list(model_name):
+    try:
+        instances = FinetuningService.get_list(model_name)
+        instance_list = [instance.to_dict() for instance in instances]
+        return SuccessResponse("查询成功", instance_list).to_json()
+    except Exception as e:
+        return handle_exception(e)

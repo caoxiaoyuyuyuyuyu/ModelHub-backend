@@ -54,3 +54,15 @@ class FinetuningService:
         if not model_class:
             raise ValueError("无效的模型名称")
         return FinetuningMapper.delete(model_class, id)
+
+    @staticmethod
+    def get_list(model_name):
+        model_class = {
+
+            'finetuning_model': FinetuningModel,
+            'pre_finetuning_model': PreFinetuningModel,
+
+        }.get(model_name)
+        if not model_class:
+            raise ValueError("无效的模型名称")
+        return FinetuningMapper.get_list(model_class)

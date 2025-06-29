@@ -51,3 +51,11 @@ class FinetuningMapper:
         except Exception as e:
             db.session.rollback()
             raise Exception(f"删除记录失败: {str(e)}")
+
+    @staticmethod
+    def get_list(model_class):
+        try:
+            instances = model_class.query.all()
+            return instances
+        except Exception as e:
+            raise Exception(f"获取记录列表失败: {str(e)}")
