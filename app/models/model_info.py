@@ -8,7 +8,7 @@ class ModelInfo(db.Model):
     model_name = db.Column(db.String(255), unique=True, nullable=False)
     supplier = db.Column(db.String(255), nullable=True)
     type = db.Column(Enum('chatllm', 'embedding'), nullable=False)
-    base_url = db.Column(db.String(255), unique=True, nullable=False)
+    base_url = db.Column(db.String(255), unique=False, nullable=False)
     api_key = db.Column(db.String(255), unique=True, nullable=False)
     describe = db.Column(db.String(255), nullable=True)
     create_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)

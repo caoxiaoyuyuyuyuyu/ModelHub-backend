@@ -142,10 +142,13 @@ def delete_vector_db(vector_db_id):
 @vector_bp.route('/upload', methods=['POST'])
 @login_required
 def upload_file():
-    if 'files' not in request.files:
+    print("Request headers:", request.headers)  # 打印请求头
+    print("Request form data:", request.form)  # 打印表单数据
+    print("Request files:", request.files)  # 打印文件数据
+    if 'file' not in request.files:
         return ErrorResponse(400, "未提供文件").to_json()
 
-    files = request.files.getlist('files')
+    files = request.files.getlist('file')
     if not files or all(file.filename == '' for file in files):
         return ErrorResponse(400, "未选择文件").to_json()
 

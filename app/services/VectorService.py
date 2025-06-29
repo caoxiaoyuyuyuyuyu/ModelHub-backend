@@ -21,6 +21,7 @@ from llama_index.core import (
     StorageContext, load_index_from_storage
 )
 from llama_index.vector_stores.chroma import ChromaVectorStore
+from app.models.model_info import ModelInfo
 
 # 初始化日志
 logging.basicConfig(level=logging.INFO)

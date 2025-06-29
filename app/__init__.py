@@ -22,10 +22,13 @@ def create_app(config_class=Config):
     from .routes import user_bp, chat_bp
     from .routes import model_bp
     from .routes import vector_bp
+    from .routes import finetuning_bp
 
     app.register_blueprint(user_bp)
     app.register_blueprint(vector_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(model_bp)
+    app.register_blueprint(finetuning_bp)  # 新增注册 finetuning_bp
+
 
     return app
