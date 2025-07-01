@@ -1,1 +1,2 @@
 from .ModelService import ModelService
+from .OllamaModelService import OllamaModelService
