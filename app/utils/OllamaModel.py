@@ -1,8 +1,14 @@
 import ollama
 from ollama import ChatResponse
 from typing import Optional, List, Any, Sequence, Dict, Tuple
+
+import logging
 from app.utils.Ollama_util import generate_response_to_dict
 
+# 配置日志记录
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # Ollama模型类封装
 class OllamaModel:
@@ -58,6 +64,7 @@ class OllamaModel:
         except Exception as e:
             print(f"generate error : {e}")
 
+
     def chat(self, message: List[Dict]):
         try:
             response: ChatResponse = ollama.chat(
@@ -69,6 +76,68 @@ class OllamaModel:
         except Exception as e:
             print(f"chat error : {e}")
 
+    @staticmethod
+    def pull_model(model_name):
+        try:
+            # 启动下载
+            response = ollama.pull(model_name, stream=True)
+
+            # 处理流式响应
+            total_size = 0
+            for progress in response:
+                if 'completed' in progress and 'total' in progress:
+                    completed = progress['completed']
+                    total = progress['total']
+                    progress_percent = (completed / total) * 100
+                    logger.info(f"下载进度: {progress_percent:.2f}%")
+                    total_size = total
+
+            # 获取模型详情
+            model_details = next((m for m in ollama.list()['models'] if m['name'] == model_name), None)
+
+            return model_details
+        except Exception as e:
+            raise Exception({"code":500, "msg":"模型下载失败！"+str(e)})
+
+    @staticmethod
+    def delete_model(model_name):
+        try:
+            # 从Ollama删除
+            ollama.delete(model_name)
+
+            return {'status': 'delete success'}
+        except Exception as e:
+            raise Exception({"code":500, "msg":"删除模型失败！"+str(e)})
+
+    @staticmethod
+    def local_model_list():
+        """
+        获取本地模型列表
+        :return:
+        """
+        try:
+            models = ollama.list()['models']
+
+            # 将每个 Model 对象转换为字典
+            models_list = []
+            for model in models:
+                # 使用 model.dict() 如果它是 Pydantic 模型
+                if hasattr(model, 'dict'):
+                    models_list.append(model.dict())
+                # 否则手动提取所需字段
+                else:
+                    models_list.append({
+                        'name': getattr(model, 'name', ''),
+                        'model': getattr(model, 'model', ''),
+                        'size': getattr(model, 'size', 0),
+                        'modified_at': getattr(model, 'modified_at', ''),
+                        'digest': getattr(model, 'digest', '')
+                    })
+            logger.info(f"获取到 {len(models_list)} 个本地模型")
+            return models_list
+        except Exception as e:
+            logger.error(f"获取模型列表失败: {e}")
+            return []
 
 # generate响应dict
 # {

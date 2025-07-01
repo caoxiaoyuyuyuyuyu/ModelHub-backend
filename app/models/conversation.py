@@ -8,6 +8,7 @@ class Conversation(db.Model):
     name = db.Column(db.String(255), nullable=True)
     model_config_id = db.Column(db.Integer, db.ForeignKey('model_config.id'), nullable=False)
     chat_history = db.Column(db.Integer, default=20, nullable=False)
+    type = db.Column(db.Integer, default=0, nullable=False)
     create_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     update_at = db.Column(
         db.DateTime,

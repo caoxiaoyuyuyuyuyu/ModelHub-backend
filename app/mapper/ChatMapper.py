@@ -157,46 +157,6 @@ class ChatMapper:
             raise Exception({"code": 500, "msg": error_msg})
 
     @staticmethod
-    def get_history(conversation_id: int, length: int) -> dict:
-        """
-        获取单个对话的历史记录
-        :param conversation_id: 对话 id
-        :return: 返回历史记录的列表
-        """
-        try:
-            # 获取最新的前10条消息
-            history = Message.query.filter_by(conversation_id=conversation_id)\
-                .order_by(Message.create_at.desc())\
-                .limit(length)\
-                .all()
-
-            # 处理空结果
-            if not history:
-                return {
-                    "messages": [],
-                    "message": "该对话暂无历史消息"
-                }
-
-            # 转换为字典列表（使用列表推导式更简洁）
-            messages = [{
-                "role": m.role,
-                "content": m.content,
-                "create_at": m.create_at.isoformat() if m.create_at else None
-            } for m in history]
-
-            # 如果需要时间正序（最旧在前），取消下面这行的注释
-            # messages.reverse()
-
-            return {
-                "messages": messages,
-                "count": len(messages)
-            }
-        except Exception as e:
-            # 更详细的错误信息
-            error_msg = f"查询对话 {conversation_id} 的历史记录失败: {str(e)}"
-            raise Exception({"code": 500, "msg": error_msg})
-
-    @staticmethod
     def get_latest_message(conversation_id: int) -> Dict[str, str]:
         """获取最新的一条消息"""
         messages = ChatMapper.get_conversation(conversation_id,1)

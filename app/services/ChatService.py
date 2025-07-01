@@ -180,7 +180,7 @@ class ChatService:
         :return: 返回历史信息的字符串
         """
         conversation_info = ChatMapper.get_conversation_info(conversation_id)
-        history = ChatMapper.get_all_history(conversation_id)
+        history = ChatMapper.get_history(conversation_id)
         return {
             "conversation_info":conversation_info,
             "history": history
