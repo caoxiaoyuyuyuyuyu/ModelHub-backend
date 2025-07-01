@@ -1,5 +1,6 @@
 from typing import Dict
 from app.models.conversation import Conversation
+from app.models.ollama_model_config import OllamaModelConfig
 from app.models.message import Message
 from app.extensions import db
 
@@ -109,6 +110,20 @@ class OllamaMapper:
             }
         except Exception as e:
             raise Exception({"code": 500, "msg": "获取对话信息失败！" + str(e)})
+
+    @staticmethod
+    def get_base_model_id(ollama_config_id: int) -> int:
+        """
+        获取 base_model_id
+        :param ollama_config_id: 配置的 id
+        :return: 返回 base_model_id
+        """
+        try:
+            info = OllamaModelConfig.query.get(ollama_config_id)
+
+            return info.base_model_id
+        except Exception as e:
+            raise Exception({"code": 500, "msg": "获取base_model_id失败！" + str(e)})
 
     @staticmethod
     def get_history(conversation_id: int, chat_history: int = 10) -> str:

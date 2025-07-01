@@ -8,7 +8,7 @@ class OllamaModelConfig(db.Model):
     __tablename__ = 'ollama_model_config'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    base_model_id = db.Column(db.Integer, db.ForeignKey('model_info.id'), nullable=False)
+    base_model_id = db.Column(db.Integer, db.ForeignKey('ollama_base_model_info.id'), nullable=False)
     name = db.Column(db.String(255), nullable=False)
     temperature = db.Column(db.Numeric(10, 2), default=decimal.Decimal('0.70'), nullable=False)
     top_p = db.Column(db.Numeric(10, 2), default=decimal.Decimal('0.70'), nullable=False)

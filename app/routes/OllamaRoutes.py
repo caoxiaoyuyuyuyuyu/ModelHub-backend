@@ -17,6 +17,7 @@ def chat() -> str:
     message = request.form.get("message")
     model_config_id = request.form.get("model_config_id")
     chat_history = request.form.get("chat_history")
+    ollama_config_id = request.form.get('ollama_config_id')
     model_type = request.form.get("model_type")
 
     user_id = request.headers.get("User-Id")
@@ -28,7 +29,7 @@ def chat() -> str:
             conversation_id = id
 
         mes = OllamaService.saveMessage(int(conversation_id), "user", str(message)) # 问题
-        res = OllamaService.chat(int(conversation_id), message)  # 回答
+        res = OllamaService.chat(int(conversation_id), int(ollama_config_id), message)  # 回答
         return SuccessResponse("对话成功！",
                                {"conversation_id": conversation_id, "response": res}).to_json()
     except Exception as e:
@@ -76,23 +77,6 @@ def delete_conversation() -> str:
     try:
         res = OllamaService.delete_conversation(int(conversation_id))
         return SuccessResponse("删除对话成功！", {"delete": res, "msg": conversation_id+"已成功删除"}).to_json()
-    except Exception as e:
-        return ErrorResponse(500, str(e)).to_json()
-
-@ollama_bp.route("/set", methods=['POST', 'PUT'])
-@login_required
-def set_chat_history() -> str:
-    """
-    修改对话的 chat_history 参数
-    :return: 返回字符串
-    """
-    chat_history = request.form.get("chat_history")
-    conversation_id = request.form.get("conversation_id")
-    if not chat_history and not conversation_id:
-        return ErrorResponse(400, "params missing").to_json()
-    try:
-        res = OllamaService.set_chat_history(int(conversation_id), int(chat_history))
-        return SuccessResponse("修改chat_history成功！", {"res": res}).to_json()
     except Exception as e:
         return ErrorResponse(500, str(e)).to_json()
 

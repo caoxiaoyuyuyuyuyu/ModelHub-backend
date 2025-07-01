@@ -3,7 +3,7 @@ from ollama import ChatResponse
 from typing import Optional, List, Any, Sequence, Dict, Tuple
 
 import logging
-from app.utils.Ollama_util import generate_response_to_dict
+# from app.utils.Ollama_util import generate_response_to_dict
 
 # 配置日志记录
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -75,6 +75,9 @@ class OllamaModel:
             return response
         except Exception as e:
             print(f"chat error : {e}")
+
+
+
 
     @staticmethod
     def pull_model(model_name):

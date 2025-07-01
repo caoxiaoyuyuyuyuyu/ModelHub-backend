@@ -1,7 +1,6 @@
 import logging
 from app.mapper.OllamaMapper import OllamaMapper
-from app.utils.OllamaModel import OllamaModel
-from app.utils.Ollama_util import chat_response_to_dict
+from app.utils.Ollama_util import chat_response_to_dict, get_ollama_chat_model
 from typing import List, Dict, Tuple, Any
 
 logger = logging.getLogger(__name__)
@@ -37,10 +36,11 @@ class OllamaService:
         return res
 
     @staticmethod
-    def chat(conversation_id: int, message: str) -> str:
+    def chat(conversation_id: int, ollama_config_id: int, message: str) -> str:
         """
         获取回答并保存
         :param conversation_id: 对话ID
+        :param ollama_config_id: ollama_model_config 的 id
         :param message: 用户消息
         :return: 助手响应内容
         """
@@ -51,7 +51,8 @@ class OllamaService:
                     "content":message
                 }
             ]
-            model = OllamaModel()
+            base_model_id = OllamaMapper.get_base_model_id(ollama_config_id)
+            model = get_ollama_chat_model(base_model_id)
             content = model.chat(message)
             response_dict = chat_response_to_dict(content)
             # 保存助手响应
@@ -111,6 +112,9 @@ class OllamaService:
         下载模型
         :return:
         """
+
+        from app.utils.OllamaModel import OllamaModel
+
         logger.info(f"开始下载模型: {model_name}")
         try:
             model_details = OllamaModel.pull_model(model_name)
@@ -124,6 +128,8 @@ class OllamaService:
     @staticmethod
     def delete_model(model_name: str) -> Dict[str, Any]:
         """删除模型"""
+        from app.utils.OllamaModel import OllamaModel
+
         logger.info(f"开始删除模型: {model_name}")
         try:
             delete_info = OllamaModel.delete_model(model_name)
@@ -138,6 +144,9 @@ class OllamaService:
     @staticmethod
     def get_model_list() -> List[Dict[str, Any]]:
         """列出所有模型（本地+数据库）"""
+
+        from app.utils.OllamaModel import OllamaModel
+
         local_models = OllamaModel.local_model_list()
 
         # 获取数据库中的模型
