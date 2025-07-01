@@ -1,6 +1,7 @@
 import logging
 from app.mapper.OllamaMapper import OllamaMapper
 from app.utils.OllamaModel import OllamaModel
+from app.utils.Ollama_util import chat_response_to_dict
 from typing import List, Dict, Tuple, Any
 
 logger = logging.getLogger(__name__)
@@ -52,8 +53,9 @@ class OllamaService:
             ]
             model = OllamaModel()
             content = model.chat(message)
+            response_dict = chat_response_to_dict(content)
             # 保存助手响应
-            res = OllamaMapper.save_message(conversation_id, "assistant", content)
+            res = OllamaMapper.save_message(conversation_id, "assistant", response_dict['response'])
             return res  # 返回助手响应内容
         except Exception as e:
             raise Exception({'status': 'error', 'message': "聊天失败！"+str(e)})
