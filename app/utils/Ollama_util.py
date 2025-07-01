@@ -16,3 +16,13 @@ def generate_response_to_dict(response: ChatResponse):
         "eval_duration": response.eval_duration
     }
     return res_dict
+
+
+def chat_response_to_dict(response: ChatResponse):
+    res_dict = {
+        "model": response.model,
+        "response": response.message['content'],  # 注意这里是 message['content']
+        "created_at": response.created_at,
+        "done": response.done
+    }
+    return res_dict
