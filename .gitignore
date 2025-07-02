@@ -6,6 +6,9 @@ __pycache__/
 chroma_data/
 chroma.log
 data/
+model/
+finetuning/
+uploads/
 
 # C extensions
 *.so

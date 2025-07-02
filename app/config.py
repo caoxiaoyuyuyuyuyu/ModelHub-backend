@@ -55,3 +55,5 @@ class Config:
 
     # 上传目录路径
     UPLOADS_DIR = os.path.join(PROJECT_ROOT, 'uploads')
+    FINETUNING_DIR = os.path.join(PROJECT_ROOT, 'finetuning')
+    MODEL_DIR = os.path.join(PROJECT_ROOT, 'model')

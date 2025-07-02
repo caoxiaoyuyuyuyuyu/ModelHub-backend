@@ -20,13 +20,9 @@ class FinetuningMapper:
             raise Exception(f"创建记录失败: {str(e)}")
 
     @staticmethod
-    def get(model_class, id):
-        return model_class.query.get(id)
-
-    @staticmethod
     def update(model_class, id, **kwargs):
         try:
-            instance = FinetuningMapper.get(model_class, id)
+            instance = model_class.query.get(id)
             if not instance:
                 return None
             for key, value in kwargs.items():
@@ -42,7 +38,7 @@ class FinetuningMapper:
     @staticmethod
     def delete(model_class, id):
         try:
-            instance = FinetuningMapper.get(model_class, id)
+            instance = model_class.query.get(id)
             if not instance:
                 return False
             db.session.delete(instance)
@@ -53,9 +49,25 @@ class FinetuningMapper:
             raise Exception(f"删除记录失败: {str(e)}")
 
     @staticmethod
-    def get_list(model_class):
+    def get_list(model_class, user_id=None):
         try:
-            instances = model_class.query.all()
+            if model_class == FinetuningModel and user_id is not None:
+                instances = model_class.query.filter_by(user_id=user_id).all()
+            else:
+                instances = model_class.query.all()
             return instances
         except Exception as e:
             raise Exception(f"获取记录列表失败: {str(e)}")
+
+    @staticmethod
+    def get_model_base(record_id):
+        try:
+            record = FinetuningRecords.query.get(record_id)
+            if not record:
+                return None
+            base_model = PreFinetuningModel.query.get(record.base_model_id)
+            if not base_model:
+                return None
+            return base_model
+        except Exception as e:
+            raise Exception(f"获取基础模型失败: {str(e)}")

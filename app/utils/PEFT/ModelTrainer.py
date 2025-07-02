@@ -110,7 +110,11 @@ class ModelTrainer:
         with open(log_path, "w", encoding="utf-8") as f:
             json.dump(trainer.state.log_history, f, indent=2)  # 格式化保存
 
-def finetune(base_model_path, file_path, data_type, output_dir, log_path, **kwargs):
+def finetune(base_model_path = r"D:\Projects\PEFT\Qwen\Qwen1.5-1.8B-Chat",
+             file_path = r"D:\Projects\PEFT\dialogue_data.json",
+             data_type = "dialogue",
+             output_dir = "./dialogue_finetuned_lora",
+             log_path = "./training_logs.json",  **kwargs):
     dataset = DataLoader.load_data(file_path, data_type)
     # 配置4-bit量化和LoRA
     bnb_config = BitsAndBytesConfig(

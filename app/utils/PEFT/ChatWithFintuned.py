@@ -29,35 +29,33 @@ def chat_with_finetuned(model_path, peft_model_path, load_in_4bit, history):
 
 
     # 生成回复
-    inputs = tokenizer.apply_chat_template(
-        history,
-        return_tensors="pt",
-        add_generation_prompt=True
-    ).to(model.device)
-
-
-    outputs = model.generate(
-        inputs,
-        max_new_tokens=512,
-        do_sample=True,
-        temperature=0.7,
-        top_p=0.9,
-    )
-    # 解码AI 回复
-    response = tokenizer.decode(outputs[0][len(inputs[0]):], skip_special_tokens=True)
-
-    return {"role": "assistant", "content": response}
+    # inputs = tokenizer.apply_chat_template(
+    #     history,
+    #     return_tensors="pt",
+    #     add_generation_prompt=True
+    # ).to(model.device)
+    #
+    #
+    # outputs = model.generate(
+    #     inputs,
+    #     max_new_tokens=1024,
+    #     do_sample=True,
+    #     temperature=0.7,
+    #     top_p=0.9,
+    # )
+    # # 解码AI 回复
+    # response = tokenizer.decode(outputs[0][len(inputs[0]):], skip_special_tokens=True)
+    #
+    # return {"role": "assistant", "content": response}
+    # 使用组合模型进行推理
+    inputs = tokenizer(history, return_tensors="pt").to("cuda")
+    outputs = model.generate(**inputs, max_new_tokens=1024)
+    print(tokenizer.decode(outputs[0], skip_special_tokens=True))
+    return {"role": "assistant", "content": tokenizer.decode(outputs[0], skip_special_tokens=True)}
 
 if __name__ == "__main__":
     model_path = r"D:\Projects\PEFT\Qwen\Qwen1.5-1.8B-Chat"
     peft_model_path = r"D:\Projects\PEFT\qwen_finetuned_lora"
     load_in_4bit = True
-    history = [
-        {"role": "user", "content": "你好"},
-        {"role": "assistant", "content": "你好，有什么我可以帮助你的吗？"},
-        {"role": "user", "content": "你叫什么名字？"},
-        {"role": "assistant", "content": "我叫ChatGLM，一个基于GLM的聊天"},
-        {"role": "user", "content": "你喜欢什么？"},
-    ]
-    print(chat_with_finetuned(model_path, peft_model_path, load_in_4bit, history))
+    print(chat_with_finetuned(model_path, peft_model_path, load_in_4bit, "若是能重来，你想改变什么？"))
 
