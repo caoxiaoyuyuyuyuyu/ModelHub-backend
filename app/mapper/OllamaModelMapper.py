@@ -1,3 +1,6 @@
+import ollama
+from tqdm import tqdm  # 导入进度条库
+
 from app.mapper import UserMapper
 from app.models.ollama_base_model_info import OllamaBaseModelInfo
 from app.models.ollama_model_config import OllamaModelConfig
@@ -139,3 +142,45 @@ class OllamaModelMapper:
             db.session.rollback()
             raise Exception(f"模型配置删除失败:{str(e)}")
 
+    @staticmethod
+    def create_model_info(
+            model_name,
+            model_supplier,
+            describe):
+        try:
+            try:
+                ollama.show(model_name)  # 尝试获取模型信息
+            except Exception as e:
+                print(f"模型 {model_name} 不存在，尝试拉取...")
+
+                # 创建进度条
+                with tqdm(
+                    desc=f"拉取模型 {model_name}",
+                    unit="B",
+                    unit_scale=True,
+                    unit_divisor=1024
+                ) as pbar:
+                    # 流式拉取模型并更新进度
+                    for progress in ollama.pull(model_name, stream=True):
+                        if 'completed' in progress and 'total' in progress:
+                            # 更新进度条
+                            pbar.total = progress['total']
+                            pbar.update(progress['completed'] - pbar.n)
+                        elif 'status' in progress:
+                            # 更新状态描述
+                            pbar.set_postfix_str(progress['status'])
+
+                print(f"模型 {model_name} 拉取完成!")
+
+            model_info = OllamaBaseModelInfo(
+                model_name=model_name,
+                model_supplier=model_supplier,
+                describe=describe
+            )
+            db.session.add(model_info)
+            db.session.commit()
+            db.session.refresh(model_info)
+            return model_info
+        except Exception as e:
+            db.session.rollback()
+            raise Exception(f"模型信息创建失败:{str(e)}")

@@ -8,13 +8,30 @@ ollama_model_bp = Blueprint('ollama_model', __name__, url_prefix='/ollama_model'
 
 
 @ollama_model_bp.route('/modelinfo/getlist', methods=['GET'])
+@login_required
 def get_all_info():
     try:
-        info_list = OllamaModelService.get_all_info()
+        user_id =  request.user.id
+        info_list = OllamaModelService.get_all_info(user_id)
         return SuccessResponse("获取model_info列表成功", info_list).to_json()
     except Exception as e:
         return error_500_print("Model error", e)
 
+@ollama_model_bp.route('/modelinfo/create', methods=['POST'])
+@login_required
+def create_model_info():
+    try:
+        data = request.get_json()
+        if not data:
+            return ErrorResponse(400, "请求数据不能为空").to_json()
+        model_info = OllamaModelService.create_model_info(
+            model_name=data.get("name"),
+            model_supplier=data.get("model_supplier", ""),
+            describe=data.get("describe")
+        )
+        return SuccessResponse("创建model_info成功", model_info).to_json()
+    except Exception as e:
+        return error_500_print("Model error", e)
 
 @ollama_model_bp.route('/modelinfo/get/<int:info_id>', methods=['GET'])
 def get_info(info_id):

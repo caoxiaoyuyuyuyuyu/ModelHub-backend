@@ -41,13 +41,22 @@ def create():
         return ErrorResponse(400, f"参数错误: {str(e)}").to_json()
     except Exception as e:
         return handle_exception(e)
-
+@finetuning_bp.route('/get-base/<int:model_id>', methods=['GET'])
+@login_required
+def get_base(model_id):
+    try:
+        instance = FinetuningService.get_model_base(model_id)
+        if instance:
+            return SuccessResponse("查询成功", instance).to_json()
+        return ErrorResponse(404, "未找到该记录").to_json()
+    except Exception as e:
+        return handle_exception(e)
 
 @finetuning_bp.route('/get/<int:model_id>', methods=['GET'])
 @login_required
 def get(model_id):
     try:
-        instance = FinetuningService.get_model(model_id)
+        instance = FinetuningService.get_model_info(model_id)
         if instance:
             return SuccessResponse("查询成功", instance).to_json()
         return ErrorResponse(404, "未找到该记录").to_json()
@@ -58,7 +67,7 @@ def get(model_id):
 @login_required
 def get_model_config(model_id):
     try:
-        instance = FinetuningService.get_model_base(model_id)
+        instance = FinetuningService.get_model(model_id)
         if instance:
             return SuccessResponse("查询成功", instance).to_json()
         return ErrorResponse(404, "未找到该记录").to_json()
@@ -129,12 +138,15 @@ def chat() -> str:
     对话
     :return: 返回json格式的字符串
     """
-    model_config_id = request.form.get("model_config_id")
-    message = request.form.get("message")
-    if not message:
-        return ErrorResponse(400, "用户消息为空").to_json()
+    data = request.get_json()
+    if not data:
+        return ErrorResponse(400, "params missing").to_json()
+    user_id = request.user.id
+    message = data.get('message')
+    model_config_id = data.get('model_config_id')
+    conversation_id = data.get('conversation_id')
     try:
-        response = FinetuningService.chat(model_config_id, message)  # 回答
+        response = FinetuningService.chat(user_id, conversation_id, model_config_id, message)  # 回答
         return SuccessResponse("对话成功！", response).to_json()
     except Exception as e:
         return ErrorResponse(500, str(e)).to_json()
@@ -147,16 +159,14 @@ def base_chat() -> str:
     :return: 返回json格式的字符串
     """
     data = request.get_json()
-    print( data)
-    model_config_id = data.get("model_config_id")
-    messages = data.get("message")
-    if not messages:
-        return ErrorResponse(400, "用户消息为空").to_json()
-    try:
-        response = FinetuningService.base_chat(model_config_id, messages)  # 回答
-        return SuccessResponse("对话成功！", response).to_json()
-    except Exception as e:
-        return ErrorResponse(500, str(e)).to_json()
+    if not data:
+        return ErrorResponse(400, "params missing").to_json()
+    user_id = request.user.id
+    message = data.get('message')
+    model_config_id = data.get('model_config_id')
+    conversation_id = data.get('conversation_id')
+    response = FinetuningService.base_chat(user_id, conversation_id, model_config_id, message)
+    return SuccessResponse("success", response).to_json()
 
 @finetuning_bp.route('/base/create', methods=['POST'])
 @login_required

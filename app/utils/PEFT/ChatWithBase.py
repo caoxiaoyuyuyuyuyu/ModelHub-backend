@@ -31,7 +31,7 @@ def chat_with_base(model_path, history):
     # 解码AI 回复
     response = tokenizer.decode(outputs[0][len(inputs[0]):], skip_special_tokens=True)
 
-    return {"role": "assistant", "content": response}
+    return response
 if __name__ == '__main__':
     history = [
         {"role": "user", "content": "你好"},

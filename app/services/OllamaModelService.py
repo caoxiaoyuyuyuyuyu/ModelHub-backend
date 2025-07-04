@@ -2,23 +2,27 @@ from app.mapper import OllamaModelMapper
 from app.mapper import UserMapper
 from flask import request
 
+from app.models.ollama_model_config import OllamaModelConfig
+
 
 class OllamaModelService:
     """模型服务类"""
 
     # 获取info列表
     @staticmethod
-    def get_all_info():
+    def get_all_info(user_id):
         try:
             info_list = OllamaModelMapper.get_all_model_info()
             model_info_list = []
             for info in info_list:
+                modelConfigs = OllamaModelConfig.query.filter_by(base_model_id=info.id, user_id=user_id).all()
                 model_info_list.append(
                     {
                         "id": info.id,
                         "model_name": info.model_name,
                         "supplier": info.model_supplier,
                         "describe": info.describe,
+                        "model_configs": [modelConfig.to_dict() for modelConfig in modelConfigs]
                     }
                 )
             return model_info_list
@@ -155,3 +159,23 @@ class OllamaModelService:
             }
         except Exception as e:
             raise Exception({'code': 500, 'msg': "删除模型配置失败" + str(e)})
+
+    @staticmethod
+    def create_model_info(
+            model_name,
+            model_supplier,
+            describe):
+        try:
+            model_info = OllamaModelMapper.create_model_info(
+                model_name=model_name,
+                model_supplier=model_supplier,
+                describe=describe
+            )
+            return {
+                "id": model_info.id,
+                "model_name": model_info.model_name,
+                "supplier": model_info.model_supplier,
+                "describe": model_info.describe,
+            }
+        except Exception as e:
+            raise Exception({'code': 500, 'msg': "创建模型信息失败" + str(e)})

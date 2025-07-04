@@ -9,16 +9,20 @@ class ChatMapper:
     prefix = "chat:"  # 键前缀，用于区分不同类型的数据
 
     @staticmethod
-    def create_conversation(user_id: int, name: str, model_config_id: int, chat_history: int = 10) -> int:
+    def create_conversation(user_id: int, name: str, model_config_id: int, chat_history: int = 10, type: int = 0) -> int:
         """
         创建对话
         :param user_id: 用户 id
         :param model_config_id: 模型配置 id
         :param chat_history: 上下文关联数量
-        :return: 返回对话的 id
+        :return:
         """
         try:
-            conversation = Conversation(user_id=user_id, name = name, model_config_id=model_config_id, chat_history=chat_history)
+            conversation = Conversation(user_id=user_id,
+                                        name = name,
+                                        model_config_id=model_config_id,
+                                        chat_history=chat_history,
+                                        type=type)
             db.session.add(conversation)
             db.session.commit()
             db.session.refresh(conversation)
@@ -109,25 +113,18 @@ class ChatMapper:
                 "name": info.name,
                 "model_config_id": info.model_config_id,
                 "chat_history": info.chat_history,
-                "update_at": info.update_at.isoformat() if info.update_at else None
+                "update_at": info.update_at.isoformat() if info.update_at else None,
+                "type": info.type,
             }
         except Exception as e:
             raise Exception({"code":500, "msg":"获取对话信息失败！"+str(e)})
 
-
     @staticmethod
-    def get_history(self, conversation_id: int, chat_history: int = 10) -> str:
-        """
-        获取单个对话的历史记录
-        :param conversation_id: 对话 id
-        :param chat_history: 获取的条数，默认为 10 条
-        :return: 返回历史记录的列表
-        """
+    def get_all_history(conversation_id: int):
         try:
             # 获取最新的前10条消息
             history = Message.query.filter_by(conversation_id=conversation_id)\
                 .order_by(Message.create_at.desc())\
-                .limit(chat_history)\
                 .all()
 
             # 处理空结果
@@ -250,8 +247,8 @@ class ChatMapper:
         old_chat_history=-1
         try:
             conv=Conversation.query.get(conversation_id)
-            old_chat_history = conv.chat_history
-            conv.chat_history = chat_history
+            old_chat_history=conv.chat_history
+            conv.chat_history=chat_history
             db.session.commit()
             db.session.refresh(conv)
             return {

@@ -15,6 +15,7 @@ class Conversation(db.Model):
         onupdate=db.func.current_timestamp(),
         nullable=False
     )
+    type = db.Column(db.Integer, default=0, nullable=False)
     user = db.relationship('User', backref=db.backref('conversations', lazy=True))
     model_config = db.relationship('ModelConfig', backref=db.backref('conversations', lazy=True))
     __table_args__ = (

@@ -1,10 +1,7 @@
 import logging
 
 from app.mapper.ChatMapper import ChatMapper
-from app.services.VectorService import VectorService
 from typing import List, Dict, Tuple
-from llama_index.core.llms import ChatMessage, ChatResponse
-
 
 from app.services import ModelService
 from app.services.VectorService import VectorService
@@ -15,7 +12,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 class ChatService:
     @staticmethod
-    def create_conversation(user_id: int, model_config_id: int | None, message: str) -> int:
+    def create_conversation(user_id: int, model_config_id: int | None, message: str, type: int = 0 ) -> int:
         """
         创建对话
         :param user_id: 用户 id
@@ -27,10 +24,9 @@ class ChatService:
             name = message[:10]
             if not model_config_id:
                 raise Exception({'code': 401, 'msg': "模型配置不存在"})
-            return ChatMapper.create_conversation(user_id, name, model_config_id)
+            return ChatMapper.create_conversation(user_id, name, model_config_id, type=type)
         except Exception as e:
-            raise Exception({'code': 500, 'msg': "创建对话失败"+str(e)})
-
+            raise e
 
     @staticmethod
     def _format_message_(role: str, message: str) -> dict:
@@ -43,117 +39,104 @@ class ChatService:
         return {"role": role, "content": message}
 
     @staticmethod
-    def saveMessage(conversation_id: int, role: str, message: str) -> str:
-        """
-        保存用户的问题
-        :param message: 用户的问题
-        :return: None
-        """
-        res = ChatMapper().save_message(conversation_id, role, message)
-        return res
-
-    @staticmethod
-    def extract_response_content(response: any) -> any:
+    def extract_response_content(response: any) -> str:
         """
         从不同格式的响应中提取内容
-        :param response: 
-        :return: 
+        :param response:
+        :return:
         """
-        # 正确处理 ChatResponse 对象
-        if isinstance(response, ChatResponse):
-            # 提取助手响应内容
-            if response.message and hasattr(response.message, 'content'):
-                content = response.message.content
-            elif hasattr(response, 'text'):
-                content = response.text
-            else:
-                # 尝试从原始响应中提取
-                content = str(response)
-                # 如果以 "assistant: " 开头，去除前缀
-                if content.startswith("assistant: "):
-                    content = content[len("assistant: "):]
-        else:
-            # 如果不是 ChatResponse，尝试直接转换为字符串
-            content = str(response)
+        # 情况1: ChatResponse对象（llama_index）
+        if hasattr(response, 'message') and hasattr(response.message, 'content'):
+            return response.message.content
+
+        # 情况2: 字符串格式的响应
+        if isinstance(response, str):
+            # 尝试去除常见前缀
+            for prefix in ["assistant: ", "Assistant: ", "AI: "]:
+                if response.startswith(prefix):
+                    return response[len(prefix):]
+            return response
+
+        # 情况3: 字典格式的响应
+        if isinstance(response, dict):
+            return response.get('content', response.get('response', str(response)))
 
         # 其他未知格式
-        return content
+        return str(response)
 
     @staticmethod
-    def chat(vector_db_id: int, conversation_id: int, model_config_id: int, chat_history: int, message: str) -> str:
+    def chat(user_id: int, conversation_id: int |  None, model_config_id, message: str) -> dict:
         """
         获取回答并保存
-        :param vector_db_id: 向量数据库ID
-        :param conversation_id: 对话ID
-        :param model_config_id: 模型配置ID
-        :param chat_history: 历史消息数量
-        :param message: 用户消息
-        :return: 助手响应内容
+        :param conversation_id: 对话 id
+        :param model_config_id: 模型配置 id
+        :param message: 消息
+        :return:
         """
-        from app.utils.TransUtil import get_chatllm
+        try:
+            if not conversation_id:
+                if not model_config_id:
+                    raise Exception({'code': 401, 'msg': "模型配置不存在"})
+                conversation_id = ChatService.create_conversation(user_id, model_config_id, message, 0)
+            if not conversation_id:
+                raise Exception({'code': 500, 'msg': "对话创建失败"})
+            ChatMapper.save_message(conversation_id, "user", message)
+
+            conversation = ChatMapper.get_conversation(conversation_id)
+
+            conversation_info = conversation['conversation_info']
+            model_config_id = conversation_info['model_config_id']
+            history = conversation['history']["messages"]
+
+            chat_messages_list = []
+            for msg in reversed(history):
+                chat_messages_list.append(ChatMessage(role=msg['role'], content=msg['content']))
+            contexts = ChatService.query_contexts(model_config_id,message)
+            context_result = "通过检索知识库已知：" + str(contexts) + "\n请根据检索结果和上下文回答用户问题，如果没有检索到知识，和用户说明情况"
+            if contexts:
+                chat_messages_list.append(ChatMessage(role="system", content=context_result))
+                # logger.info(f"{msg['role']}:{msg['content']}")
+            model = get_chatllm(model_config_id)
+            response = model.chat(chat_messages_list)
+            # 使用通用提取函数
+            content = ChatService.extract_response_content(response)
+            # 保存处理后的内容
+            res = ChatMapper.save_message(conversation_id, "assistant", content)
+            return {
+                "response": res,
+                "conversation_id": conversation_id,
+                "conversation_name": conversation_info['name']
+            }
+        except Exception as e:
+            raise
+    @staticmethod
+    def rechat(conversation_id: int) -> dict:
+        """
+        获取最新的一条消息
+        :param conversation_id: 对话 id
+        :return:
+        """
+        conversation = ChatMapper.get_conversation(conversation_id)
+        # logger.info(f"conversation: {conversation}")
+        conversation_info = conversation['conversation_info']
+        model_config_id = conversation_info['model_config_id']
+        history = conversation['history']["messages"]
+        # logger.info(f"history: {len(history)}")
+
+        chat_messages_list = []
+        for msg in reversed(history):
+            chat_messages_list.append(ChatMessage(role=msg['role'], content=msg['content']))
+        chat_messages_list.append(ChatMessage(role="user", content='重新回答'))
 
         model = get_chatllm(model_config_id)
-        history = ChatMapper().get_history(conversation_id, chat_history) or {"messages": []}
-
-        # 使用当前消息进行向量查询
-        query_text = message
-
-        try:
-            # 获取向量查询结果
-            context_results = VectorService.query_vectors(vector_db_id, query_text, chat_history)
-
-            # 提取文本内容并连接成字符串
-            context_texts = []
-            for result in context_results:
-                if 'text' in result and result['text']:
-                    context_texts.append(result['text'])
-                elif 'content' in result and result['content']:
-                    context_texts.append(result['content'])
-
-            context = "\n\n".join(context_texts) if context_texts else "没有找到相关上下文信息"
-        except Exception as e:
-            print(f"向量查询失败: {str(e)}")
-            context = "无法获取相关上下文信息"
-
-        # 构建消息列表 - 使用 ChatMessage 对象而不是字典
-        messages = []
-
-        print(f"context:\n{context}")
-        # 添加上下文作为系统消息
-        if context:
-            messages.append(ChatMessage(role="system", content=f"相关上下文信息：{context}"))
-
-        # 添加历史对话消息
-        for msg in history.get("messages", []):
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-
-            if content and role in ["system", "user", "assistant"]:
-                messages.append(ChatMessage(role=role, content=content))
-
-        # 添加当前用户消息
-        messages.append(ChatMessage(role="user", content=message))
-
-        print(f"准备的消息序列长度: {len(messages)}")
-        for i, msg in enumerate(messages):
-            print(f"消息 {i + 1}: 角色={msg.role}, 内容长度={len(msg.content)}")
-
-        try:
-            # 调用模型 chat 方法
-            response = model.chat(messages)
-            print(f"模型响应类型: {type(response)}")
-
-            # 正确处理 ChatResponse 对象
-            content = ChatService.extract_response_content(response)
-
-        except Exception as e:
-            import traceback
-            print(f"模型对话失败详情: {traceback.format_exc()}")
-            return "处理您的请求时出错"
-
-        # 保存助手响应
-        res = ChatMapper().save_message(conversation_id, "assistant", content)
-        return res  # 返回助手响应内容
+        response = model.chat(chat_messages_list)
+        content = ChatService.extract_response_content(response)
+        res = ChatMapper.save_message(conversation_id, "assistant", content)
+        return {
+            "response": res,
+            "conversation_id": conversation_id,
+            "conversation_name": conversation_info['name']
+        }
 
 
     @staticmethod

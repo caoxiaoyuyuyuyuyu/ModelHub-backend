@@ -51,7 +51,7 @@ def chat_with_finetuned(model_path, peft_model_path, load_in_4bit, history):
     inputs = tokenizer(history, return_tensors="pt").to("cuda")
     outputs = model.generate(**inputs, max_new_tokens=1024)
     print(tokenizer.decode(outputs[0], skip_special_tokens=True))
-    return {"role": "assistant", "content": tokenizer.decode(outputs[0], skip_special_tokens=True)}
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
 if __name__ == "__main__":
     model_path = r"D:\Projects\PEFT\Qwen\Qwen1.5-1.8B-Chat"

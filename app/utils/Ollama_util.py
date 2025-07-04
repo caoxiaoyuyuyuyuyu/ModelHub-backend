@@ -20,17 +20,6 @@ def generate_response_to_dict(response: ChatResponse):
     }
     return res_dict
 
-
-def chat_response_to_dict(response: ChatResponse):
-    res_dict = {
-        "model": response.model,
-        "response": response.message['content'],  # 注意这里是 message['content']
-        "created_at": response.created_at,
-        "done": response.done
-    }
-    return res_dict
-
-
 def get_ollama_chat_model(model_config: int):
     model_config = OllamaModelConfig.query.get(model_config)
     if not model_config:

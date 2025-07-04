@@ -4,11 +4,13 @@ import os
 from flask import current_app, send_file
 from scipy.stats import describe
 
+from app.mapper import ChatMapper
 from app.mapper.FinetuningMapper import FinetuningMapper
 from app.models import FinetuningDocument
 from app.models import FinetuningModel
 from app.models import PreFinetuningModel
 from app.models import FinetuningRecords
+from app.services import ChatService
 from app.utils.PEFT.ChatWithBase import chat_with_base
 from app.utils.PEFT.ChatWithFintuned import chat_with_finetuned
 from app.utils.PEFT.DownloadModel import robust_download_model
@@ -87,7 +89,7 @@ class FinetuningService:
             return None
 
     @staticmethod
-    def get_model(model_id):
+    def get_model_info(model_id):
         try:
             finetuning_model = FinetuningModel.query.get(model_id)
             finetuning_record = FinetuningRecords.query.get(finetuning_model.record_id)
@@ -110,9 +112,9 @@ class FinetuningService:
 
     @staticmethod
 
-    def get_model_base(model_id):
+    def get_model(model_id):
         try:
-            info = FinetuningService.get_model(model_id)
+            info = FinetuningService.get_model_info(model_id)
             return {
                 'model_path': info['base_model']['path'],
                 'name': info['fine_tuned_model']['name'],
@@ -121,7 +123,15 @@ class FinetuningService:
             }
         except Exception as e:
             raise e
-
+    @staticmethod
+    def get_model_base(model_id):
+        model = PreFinetuningModel.query.get(model_id)
+        return {
+            "model_path": model.path,
+            "name": model.name,
+        }
+        
+    
     @staticmethod
     def update(model_name, id, **kwargs):
         model_class = {
@@ -166,7 +176,7 @@ class FinetuningService:
         return file_name, log_path
 
     @staticmethod
-    def chat(model_config_id, messages):
+    def chat(user_id: int, conversation_id, model_config_id, message):
         """
         获取回答并保存
         :param model_config_id: 模型配置 id
@@ -174,18 +184,35 @@ class FinetuningService:
         :return:
         """
         try:
-            model = FinetuningService.get_model_base(model_config_id)
-            if isinstance(messages, str):
-                messages = [{"role": "user", "content": messages}]
-            print(messages)
-            res = chat_with_finetuned(model['model_path'], model['peft_model_path'], model['load_in_4bit'], messages[-1]['content'])
+            if not conversation_id:
+                if not model_config_id:
+                    raise Exception({'code': 401, 'msg': "模型配置不存在"})
+                conversation_id = ChatService.create_conversation(user_id, model_config_id, message, 3)
+                if not conversation_id:
+                    raise Exception({'code': 500, 'msg': "对话创建失败"})
+            ChatMapper.save_message(conversation_id, "user", message)
+            print("conversation_id:", conversation_id)
+            conversation = ChatMapper.get_conversation(conversation_id)
+
+            conversation_info = conversation['conversation_info']
+            model_config_id = conversation_info['model_config_id']
+            history = conversation['history']["messages"]
+            print("history:", history)
+            model = FinetuningService.get_model(model_config_id)
+            if isinstance(message, str):
+                messages = [{"role": "user", "content": message}]
+            print(message)
+            response = chat_with_finetuned(model['model_path'], model['peft_model_path'], model['load_in_4bit'], messages[-1]['content'])
+            res = ChatMapper.save_message(conversation_id, "assistant", response)
             return {
-                "response": res
+                "response": res,
+                "conversation_id": conversation_id,
+                "conversation_name": conversation_info['name']
             }
         except Exception as e:
             raise  e
     @staticmethod
-    def base_chat(model_config_id, messages):
+    def base_chat(user_id: int, conversation_id, model_config_id, message) -> dict:
         """
         获取回答并保存
         :param model_config_id: 模型配置 id
@@ -193,10 +220,28 @@ class FinetuningService:
         :return:
         """
         try:
+            if not conversation_id:
+                if not model_config_id:
+                    raise Exception({'code': 401, 'msg': "模型配置不存在"})
+                conversation_id = ChatService.create_conversation(user_id, model_config_id, message, 2)
+                if not conversation_id:
+                    raise Exception({'code': 500, 'msg': "对话创建失败"})
+            ChatMapper.save_message(conversation_id, "user", message)
+            print("conversation_id:", conversation_id)
+            conversation = ChatMapper.get_conversation(conversation_id)
+
+            conversation_info = conversation['conversation_info']
+            model_config_id = conversation_info['model_config_id']
+            history = conversation['history']["messages"]
+            print("history:", history)
             model = FinetuningService.get_model_base(model_config_id)
-            res = chat_with_base(model['model_path'], messages)
+            print("model:", model)
+            response = chat_with_base(model['model_path'], message)
+            res = ChatMapper.save_message(conversation_id, "assistant", response)
             return {
-                "response": res
+                "response": res,
+                "conversation_id": conversation_id,
+                "conversation_name": conversation_info['name']
             }
         except Exception as e:
             raise  e
@@ -205,12 +250,11 @@ class FinetuningService:
     def create_base(data):
         try:
             name = data.get('name')
-            path = current_app.config['MODEL_DIR'] + '/' + name
+            path = current_app.config['MODEL_DIR'] + '\\' + name
             describe = data.get('describe', '')
             type = data.get('type', 'chatllm')
             # 从HuggingFace下载模型
             robust_download_model(name, path)
-            path = os.path.join(path, name)
             instance = FinetuningMapper.create(PreFinetuningModel, **{
                 "name": name,
                 "path": path,
