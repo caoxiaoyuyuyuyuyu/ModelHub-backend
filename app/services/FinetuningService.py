@@ -16,10 +16,11 @@ from app.utils.PEFT.ChatWithFintuned import chat_with_finetuned
 from app.utils.PEFT.DownloadModel import robust_download_model
 from app.utils.PEFT.ModelTrainer import finetune
 from app.utils.file_utils import save_uploaded_file
+from app.utils.PEFT.ModelTrainer import ProgressCallback
 
 class FinetuningService:
     @staticmethod
-    def create(data, user_id, file):
+    def create(data, user_id, file, socketio):
         params = {
             "base_model_id": int(data.get('base_model_id')),
             "load_in_4bit": bool(data.get('load_in_4bit')),
@@ -35,31 +36,28 @@ class FinetuningService:
             "optim": "paged_adamw_8bit",
         }
         base_model_path = PreFinetuningModel.query.get(data.get('base_model_id')).path
-        print(base_model_path)
         if not base_model_path:
             raise ValueError("无效的模型ID")
-        # Verify the directory exists
         finetuning_dir = current_app.config.get('FINETUNING_DIR')
         if not finetuning_dir:
             raise ValueError("Finetuning directory not configured")
-
-        # Create directory if it doesn't exist
         os.makedirs(finetuning_dir, exist_ok=True)
-        print("current_app.config['FINETUNING_DIR']")
-        print("current_app.config['FINETUNING_DIR']", current_app.config['FINETUNING_DIR'])
         file_name = save_uploaded_file(file, current_app.config['FINETUNING_DIR'])
         if not file_name:
             raise ValueError("上传文件失败")
         try:
             output_dir = os.path.join(current_app.config.get('FINETUNING_DIR'), "outputs", str(user_id), data.get('model_name'))
-
             log_path = os.path.join(current_app.config.get('FINETUNING_DIR'), "outputs", str(user_id), data.get('model_name')+"training_logs.json")
+            # 创建回调实例并传入 socketio
+            progress_callback = ProgressCallback(log_path, socketio)
+
             finetune(
                 base_model_path,
                 os.path.join(current_app.config['FINETUNING_DIR'], file_name),
                 data.get('training_type'),
                 output_dir,
                 log_path,
+                callbacks=[progress_callback],  # 传入回调
                 **params
             )
             params["output_dir"]=output_dir
@@ -74,7 +72,6 @@ class FinetuningService:
                 "size": file.content_length,
                 "save_path": file_name,
                 "describe": data.get('describe'),
-
             })
             FinetuningModelParams = {
                 "user_id": user_id,

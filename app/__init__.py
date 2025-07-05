@@ -1,9 +1,11 @@
 # backend/__init__.py
 from flask import Flask
 from flask_cors import CORS
-
+from flask_socketio import SocketIO
 from .extensions import db
 from .config import Config
+
+socketio = SocketIO()
 
 
 def create_app(config_class=Config):
@@ -34,5 +36,12 @@ def create_app(config_class=Config):
     app.register_blueprint(ollama_bp)
     app.register_blueprint(ollama_model_bp)
 
+    socketio = SocketIO(app)
+    return app, socketio
 
-    return app
+if __name__ == '__main__':
+    app, socketio = create_app()
+    with app.app_context():
+        db.create_all()
+    socketio.run(app, debug=True)
+

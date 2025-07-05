@@ -1,10 +1,13 @@
 # app/routes/FinetuningRoutes.py
 from flask import Blueprint, request, current_app, send_file
+from flask_socketio import SocketIO, emit
 from app.forms.base import ErrorResponse, SuccessResponse
 from app.services.FinetuningService import FinetuningService
 from app.utils.JwtUtil import login_required
 from app.utils.file_utils import save_uploaded_file
 import os
+
+from app import socketio
 
 finetuning_bp = Blueprint('finetuning', __name__, url_prefix='/finetuning')
 
@@ -34,13 +37,14 @@ def create():
             return ErrorResponse(400, "请上传文件").to_json()
 
         # 调用服务
-        instance = FinetuningService.create(data, user_id, file)  # 传入单个文件
+        instance = FinetuningService.create(data, user_id, file,socketio)  # 传入单个文件
         return SuccessResponse("创建成功", instance.to_dict()).to_json()
 
     except ValueError as e:
         return ErrorResponse(400, f"参数错误: {str(e)}").to_json()
     except Exception as e:
         return handle_exception(e)
+
 @finetuning_bp.route('/get-base/<int:model_id>', methods=['GET'])
 @login_required
 def get_base(model_id):

@@ -11,6 +11,25 @@ import torch
 
 from app.utils.PEFT.DataLoader import DataLoader
 
+class ProgressCallback(TrainerCallback):
+    def __init__(self, log_path, socketio):
+        self.log_path = log_path
+        self.socketio = socketio
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if state.is_local_process_zero:
+            # 保存日志信息
+            with open(self.log_path, "a", encoding="utf-8") as f:
+                json.dump(logs, f)
+                f.write("\n")
+            # 计算进度
+            total_steps = state.max_steps
+            current_step = state.global_step
+            progress = (current_step / total_steps) * 100
+            print(f"Training progress: {progress:.2f}%")
+            # 发送进度信息到前端
+            self.socketio.emit('training_progress', {'progress': progress})
+
 
 class ModelTrainer:
     @staticmethod
@@ -96,12 +115,16 @@ class ModelTrainer:
         model = ModelTrainer.load_model(model_path, bnb_config, peft_config)
         tokenizer_dataset = ModelTrainer.preprocess(tokenizer, dataset, type)
 
+        # 创建回调实例
+        progress_callback = ProgressCallback(log_path)
+
         # 开始训练
         trainer = Trainer(
             model=model,
             args=training_args,
             train_dataset=tokenizer_dataset,
             data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False),
+            callbacks=[progress_callback]
         )
 
         trainer.train()
