@@ -163,6 +163,7 @@ class FinetuningService:
             raise ValueError("无效的模型名称")
         if model_name == 'finetuning_model':
             return FinetuningMapper.get_list(model_class, user_id)
+<<<<<<< HEAD
         return FinetuningMapper.get_list(model_class)
 
     @staticmethod
@@ -262,3 +263,6 @@ class FinetuningService:
         except Exception as e:
             current_app.logger.error(f"创建基础模型失败: {str(e)}")
             raise  e
+=======
+        return FinetuningMapper.get_list(model_class)
+>>>>>>> 4a6e2858f4fdad7a22cc0a167f5a9d99b685bbdf
