@@ -17,6 +17,7 @@ class ProgressCallback(TrainerCallback):
         self.socketio = socketio
 
     def on_log(self, args, state, control, logs=None, **kwargs):
+        print("logs:", logs)
         if state.is_local_process_zero:
             # 保存日志信息
             with open(self.log_path, "a", encoding="utf-8") as f:
@@ -110,13 +111,10 @@ class ModelTrainer:
             remove_columns=["text"]
         )
     @staticmethod
-    def train(model_path, dataset, type, bnb_config, peft_config, training_args, output_dir, log_path):
+    def train(model_path, dataset, type, bnb_config, peft_config, training_args, output_dir, log_path, callbacks=None):
         tokenizer = ModelTrainer.load_tokenizer(model_path)
         model = ModelTrainer.load_model(model_path, bnb_config, peft_config)
         tokenizer_dataset = ModelTrainer.preprocess(tokenizer, dataset, type)
-
-        # 创建回调实例
-        progress_callback = ProgressCallback(log_path)
 
         # 开始训练
         trainer = Trainer(
@@ -124,7 +122,7 @@ class ModelTrainer:
             args=training_args,
             train_dataset=tokenizer_dataset,
             data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False),
-            callbacks=[progress_callback]
+            callbacks=callbacks if callbacks else []
         )
 
         trainer.train()
@@ -137,7 +135,7 @@ def finetune(base_model_path = r"D:\Projects\PEFT\Qwen\Qwen1.5-1.8B-Chat",
              file_path = r"D:\Projects\PEFT\dialogue_data.json",
              data_type = "dialogue",
              output_dir = "./dialogue_finetuned_lora",
-             log_path = "./training_logs.json",  **kwargs):
+             log_path = "./training_logs.json", socketio=None, callbacks=None, **kwargs):
     dataset = DataLoader.load_data(file_path, data_type)
     # 配置4-bit量化和LoRA
     bnb_config = BitsAndBytesConfig(
@@ -168,7 +166,11 @@ def finetune(base_model_path = r"D:\Projects\PEFT\Qwen\Qwen1.5-1.8B-Chat",
         fp16=kwargs.get("fp16", True),
         optim=kwargs.get("optim", "paged_adamw_8bit")
     )
-    ModelTrainer.train(base_model_path, dataset, data_type, bnb_config, peft_config, training_args, output_dir, log_path)
+    # 如果外部传入了callbacks，使用外部的callbacks
+    if callbacks is None:
+        callbacks = [ProgressCallback(log_path, socketio)] if socketio else []
+    ModelTrainer.train(base_model_path, dataset, data_type, bnb_config, peft_config, training_args, output_dir, log_path,
+        callbacks=callbacks)
 
 
 if __name__ == "__main__":

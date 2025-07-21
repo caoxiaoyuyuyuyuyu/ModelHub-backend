@@ -5,12 +5,10 @@ from flask_socketio import SocketIO
 from .extensions import db
 from .config import Config
 
-socketio = SocketIO()
-
-
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+    app.config['SECRET_KEY'] = 'your-secret-key'
 
     CORS(app, supports_credentials=True, origins=["http://localhost:5173"],
          allow_headers=["Authorization", "Content-Type"],
@@ -19,6 +17,9 @@ def create_app(config_class=Config):
 
     # 初始化扩展
     db.init_app(app)
+
+    # 初始化Socket.IO
+    socketio.init_app(app)
 
     # 注册蓝图
     from .routes import user_bp, chat_bp
@@ -36,11 +37,26 @@ def create_app(config_class=Config):
     app.register_blueprint(ollama_bp)
     app.register_blueprint(ollama_model_bp)
 
-    socketio = SocketIO(app)
-    return app, socketio
+    return app
+
+socketio = SocketIO(async_mode='threading', cors_allowed_origins="*")
+@socketio.on('connect')
+def handle_connect():
+    print('客户端连接成功')
+    return True  # 必须返回True接受连接
+
+@socketio.on('disconnect')
+def handle_disconnect(data=None):  # 添加可选参数
+    print(f'客户端断开连接，数据: {data}')
+
+# 添加错误处理
+@socketio.on_error_default
+def default_error_handler(e):
+    print(f"WebSocket错误: {str(e)}")
+    return False  # 返回False拒绝错误连接
 
 if __name__ == '__main__':
-    app, socketio = create_app()
+    app = create_app()
     with app.app_context():
         db.create_all()
     socketio.run(app, debug=True)

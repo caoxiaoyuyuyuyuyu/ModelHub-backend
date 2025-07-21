@@ -67,7 +67,8 @@ def login():
 @login_required
 def test():
     user = request.user
-    return SuccessResponse("测试成功", user.to_dict()).to_json()
+    user = UserService.get_user_by_email(user.email)
+    return SuccessResponse("测试成功", user).to_json()
 
 @user_bp.route('/info', methods=['GET'])
 @login_required

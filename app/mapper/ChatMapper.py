@@ -5,7 +5,7 @@ from app.models.message import Message
 from app.extensions import db
 
 class ChatMapper:
-    redis_client = ConversationStore().getRedis_client()
+    redis_client = ConversationStore().get_redis_client()
     prefix = "chat:"  # 键前缀，用于区分不同类型的数据
 
     @staticmethod

@@ -10,6 +10,6 @@ class ConversationStore:
             decode_responses=True  # 自动解码字节数据为字符串
         )
 
-    def getRedis_client(self):
+    def get_redis_client(self):
         return self.redis_client
 

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-from flask import request
+from flask import request, current_app
 import jwt
 from functools import wraps
 
@@ -51,6 +51,7 @@ def verify_jwt(token: str):
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        print(request.path, request.method)
         # 打印所有请求头（调试用）
         # current_app.logger.debug(f"所有请求头: {request.headers}")
         auth_header = request.headers.get('Authorization', '')

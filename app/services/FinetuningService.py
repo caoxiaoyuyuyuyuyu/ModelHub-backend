@@ -16,7 +16,6 @@ from app.utils.PEFT.ChatWithFintuned import chat_with_finetuned
 from app.utils.PEFT.DownloadModel import robust_download_model
 from app.utils.PEFT.ModelTrainer import finetune
 from app.utils.file_utils import save_uploaded_file
-from app.utils.PEFT.ModelTrainer import ProgressCallback
 
 class FinetuningService:
     @staticmethod
@@ -48,39 +47,52 @@ class FinetuningService:
         try:
             output_dir = os.path.join(current_app.config.get('FINETUNING_DIR'), "outputs", str(user_id), data.get('model_name'))
             log_path = os.path.join(current_app.config.get('FINETUNING_DIR'), "outputs", str(user_id), data.get('model_name')+"training_logs.json")
-            # 创建回调实例并传入 socketio
-            progress_callback = ProgressCallback(log_path, socketio)
-
-            finetune(
-                base_model_path,
-                os.path.join(current_app.config['FINETUNING_DIR'], file_name),
-                data.get('training_type'),
-                output_dir,
-                log_path,
-                callbacks=[progress_callback],  # 传入回调
-                **params
-            )
-            params["output_dir"]=output_dir
-            params["log_path"]=log_path
-            record =  FinetuningMapper.create(FinetuningRecords, **params)
-            FinetuningMapper.create(FinetuningDocument, **{
-                "user_id": user_id,
-                "record_id": record.id,
-                "name": file_name,
-                "original_name": file.filename,
-                "type": data.get('training_type'),
-                "size": file.content_length,
-                "save_path": file_name,
-                "describe": data.get('describe'),
+            status = "running"
+            instance = None
+            try:
+                record =  FinetuningMapper.create(FinetuningRecords, **params, **{
+                    "output_dir": output_dir,
+                    "log_path": log_path,
+                })
+                FinetuningMapper.create(FinetuningDocument, **{
+                    "user_id": user_id,
+                    "record_id": record.id,
+                    "name": file_name,
+                    "original_name": file.filename,
+                    "type": data.get('training_type'),
+                    "size": file.content_length,
+                    "save_path": file_name,
+                    "describe": data.get('describe'),
+                })
+                FinetuningModelParams = {
+                    "user_id": user_id,
+                    "name": data.get('model_name'),
+                    "describe": data.get('describe'),
+                    "record_id": record.id,
+                    "status": status
+                }
+                instance = FinetuningMapper.create(FinetuningModel, **FinetuningModelParams)
+                finetune(
+                    base_model_path,
+                    os.path.join(current_app.config['FINETUNING_DIR'], file_name),
+                    data.get('training_type'),
+                    output_dir,
+                    log_path,
+                    socketio=socketio,  # 传入回调
+                    **params
+                )
+            except Exception as e:
+                status = "failed"
+                if instance:
+                    FinetuningMapper.update(FinetuningModel, instance.id, **{
+                        "status": status
+                    })
+                current_app.logger.error(f"模型微调失败: {str(e)}")
+            status = "completed"
+            FinetuningMapper.update(FinetuningModel, instance.id, **{
+                "status": status
             })
-            FinetuningModelParams = {
-                "user_id": user_id,
-                "name": data.get('model_name'),
-                "describe": data.get('describe'),
-                "record_id": record.id,
-                "status": "completed"
-            }
-            return FinetuningMapper.create(FinetuningModel, **FinetuningModelParams)
+            return instance
         except Exception as e:
             current_app.logger.error(f"模型微调失败: {str(e)}")
             return None
@@ -163,7 +175,6 @@ class FinetuningService:
             raise ValueError("无效的模型名称")
         if model_name == 'finetuning_model':
             return FinetuningMapper.get_list(model_class, user_id)
-<<<<<<< HEAD
         return FinetuningMapper.get_list(model_class)
 
     @staticmethod
@@ -208,6 +219,7 @@ class FinetuningService:
                 "conversation_name": conversation_info['name']
             }
         except Exception as e:
+            FinetuningMapper.update(FinetuningModel, model_config_id, status="failed")
             raise  e
     @staticmethod
     def base_chat(user_id: int, conversation_id, model_config_id, message) -> dict:
@@ -263,6 +275,3 @@ class FinetuningService:
         except Exception as e:
             current_app.logger.error(f"创建基础模型失败: {str(e)}")
             raise  e
-=======
-        return FinetuningMapper.get_list(model_class)
->>>>>>> 4a6e2858f4fdad7a22cc0a167f5a9d99b685bbdf
