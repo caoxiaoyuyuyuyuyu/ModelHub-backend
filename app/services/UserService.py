@@ -7,11 +7,11 @@ from app.utils import JwtUtil
 class UserService:
     """用户服务类"""
     @staticmethod
-    def register(name, email, password,describe=None):
+    def register(name, email, password,describe=None, type = 1):
         if UserMapper.get_user_by_email(email):
             raise Exception({'code': 401, 'msg': "邮箱已存在"})
         try:
-            user = UserMapper.create_user(name, email, password,describe)
+            user = UserMapper.create_user(name, email, password,describe, type)
             token = JwtUtil.generate_jwt(user.id, user.name, user.email, user.type)
             return {
                 "id": user.id,

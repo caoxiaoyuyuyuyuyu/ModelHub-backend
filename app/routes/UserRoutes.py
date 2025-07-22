@@ -17,12 +17,13 @@ def register():
     email = data.get('email')
     password = data.get('password')
     describe = data.get('describe')
+    type = data.get('type', 1)
 
-    if not all([name, email, password]):
+    if not all([name, email, password, type]):
         return ErrorResponse(400, "缺少必要参数: name, email 或 password").to_json()
 
     try:
-        token = UserService.register(name, email, password, describe)
+        token = UserService.register(name, email, password, describe, type)
         return SuccessResponse("注册成功", token).to_json()
     except Exception as e:
         # 打印错误信息便于调试

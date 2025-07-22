@@ -11,13 +11,13 @@ class UserMapper:
         return User.query.get(id)
 
     @staticmethod
-    def create_user(name: str, email: str, password: str, describe: str | None):
+    def create_user(name: str, email: str, password: str, describe: str | None, type):
         try:
             # Check if email already exists
             if UserMapper.get_user_by_email(email):
                 raise ValueError("Email already exists")
 
-            user = User(name=name, email=email, password=get_password_hash(password), describe=describe)
+            user = User(name=name, email=email, password=get_password_hash(password), describe=describe, type=type)
             db.session.add(user)
             db.session.commit()
             db.session.refresh(user)
