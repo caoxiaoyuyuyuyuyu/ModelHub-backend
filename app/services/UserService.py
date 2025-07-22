@@ -12,12 +12,13 @@ class UserService:
             raise Exception({'code': 401, 'msg': "邮箱已存在"})
         try:
             user = UserMapper.create_user(name, email, password,describe)
-            token = JwtUtil.generate_jwt(user.id, user.name, user.email)
+            token = JwtUtil.generate_jwt(user.id, user.name, user.email, user.type)
             return {
                 "id": user.id,
                 "name": user.name,
                 "avatar": user.avatar,
                 "email": user.email,
+                "type": user.type,
                 "token": token
             }
         except Exception as e:
@@ -29,12 +30,13 @@ class UserService:
         if not user:
             raise Exception({'code': 404, 'msg': "用户不存在"})
         if JwtUtil.authenticate_user(user, email, password):
-            token = JwtUtil.generate_jwt(user.id, user.name, user.email)
+            token = JwtUtil.generate_jwt(user.id, user.name, user.email, user.type)
             return {
                 "id": user.id,
                 "name": user.name,
                 "avatar": user.avatar,
                 "email": user.email,
+                "type": user.type,
                 "token": token
             }
         else:

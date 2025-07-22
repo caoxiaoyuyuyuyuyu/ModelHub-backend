@@ -6,3 +6,5 @@ from .FinetuningRoutes import finetuning_bp
 
 from .OllamaRoutes import ollama_bp
 from .OllamaModelRoutes import ollama_model_bp
+
+from .PermissionRoutes import permission_bp

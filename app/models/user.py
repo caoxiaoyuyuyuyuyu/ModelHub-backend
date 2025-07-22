@@ -3,6 +3,7 @@ from app.extensions import db
 type_map = {
     1:  'Individual',
     2:  'Enterprise',
+    3:  'Admin'
 }
 
 class User(db.Model):
@@ -13,7 +14,7 @@ class User(db.Model):
     password = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(255), nullable=True)
     describe = db.Column(db.String(255), nullable=True)
-    type = db.Column(db.Integer, nullable=True)
+    type = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=True)
     create_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     update_at = db.Column(
         db.DateTime,
