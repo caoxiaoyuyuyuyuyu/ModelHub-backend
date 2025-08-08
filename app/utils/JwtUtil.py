@@ -60,33 +60,16 @@ import re
 
 
 def verify_permission(role_id: int, path: str, method: str) -> bool:
-    """
-    验证指定角色是否有权限访问指定路由
-
-    参数:
-        role_id: 用户角色ID
-        path: 要验证的路径 (可以是实际路径或带变量的路由模式)
-        method: HTTP方法 (GET, POST, PUT, DELETE等)
-
-    返回:
-        bool: 有权限返回True，否则返回False
-
-    异常:
-        Forbidden: 当权限检查失败需要阻止访问时抛出
-    """
     try:
         # 1. 验证角色是否存在
         role = Role.query.get(role_id)
         if not role:
             current_app.logger.warning(f"无效角色ID: {role_id}")
             return False
-
         # 2. 标准化路径（移除查询参数）
         clean_path = urlparse(path).path
-
         # 3. 获取所有路由定义
         all_routes = Route.query.filter_by(method=method.upper()).all()
-
         # 4. 查找匹配的路由
         matched_route = None
         for route in all_routes:
@@ -95,11 +78,9 @@ def verify_permission(role_id: int, path: str, method: str) -> bool:
             if re.fullmatch(route_pattern, clean_path):
                 matched_route = route
                 break
-
         if not matched_route:
             current_app.logger.warning(f"未找到匹配路由: {method} {clean_path}")
             return False
-
         # 5. 检查角色是否有该路由权限
         has_permission = db.session.query(
             RoleRoute.query.filter_by(
@@ -107,23 +88,16 @@ def verify_permission(role_id: int, path: str, method: str) -> bool:
                 role_id=role_id
             ).exists()
         ).scalar()
-
         if has_permission:
             current_app.logger.debug(
                 f"权限验证通过: 角色[{role.name}]可以访问 {method} {clean_path} "
                 f"(匹配路由: {matched_route.path})"
             )
             return True
-
-        current_app.logger.info(
-            f"权限不足: 角色[{role.name}]无法访问 {method} {clean_path}"
-        )
+        current_app.logger.info(f"权限不足: 角色[{role.name}]无法访问 {method} {clean_path}")
         return False
-
     except Exception as e:
-        current_app.logger.error(
-            f"权限验证失败: {method} {path}. 错误: {str(e)}"
-        )
+        current_app.logger.error(f"权限验证失败: {method} {path}. 错误: {str(e)}")
         raise Forbidden("权限验证失败")
 
 def login_required(f):

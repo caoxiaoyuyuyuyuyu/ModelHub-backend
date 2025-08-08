@@ -27,26 +27,6 @@ def chat_with_finetuned(model_path, peft_model_path, load_in_4bit, history):
     # 然后加载LoRA
     model = PeftModel.from_pretrained(model, peft_model_path)
 
-
-    # 生成回复
-    # inputs = tokenizer.apply_chat_template(
-    #     history,
-    #     return_tensors="pt",
-    #     add_generation_prompt=True
-    # ).to(model.device)
-    #
-    #
-    # outputs = model.generate(
-    #     inputs,
-    #     max_new_tokens=1024,
-    #     do_sample=True,
-    #     temperature=0.7,
-    #     top_p=0.9,
-    # )
-    # # 解码AI 回复
-    # response = tokenizer.decode(outputs[0][len(inputs[0]):], skip_special_tokens=True)
-    #
-    # return {"role": "assistant", "content": response}
     # 使用组合模型进行推理
     inputs = tokenizer(history, return_tensors="pt").to("cuda")
     outputs = model.generate(**inputs, max_new_tokens=1024)
