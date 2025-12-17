@@ -2,7 +2,7 @@
 from flask import Flask
 from flask_cors import CORS
 from flask_socketio import SocketIO
-from .extensions import db
+from .extensions import db, migrate
 from .config import Config
 
 def create_app(config_class=Config):
@@ -17,6 +17,7 @@ def create_app(config_class=Config):
 
     # 初始化扩展
     db.init_app(app)
+    migrate.init_app(app, db)
 
     # 初始化Socket.IO
     socketio.init_app(app)

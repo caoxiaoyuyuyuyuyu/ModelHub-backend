@@ -12,7 +12,7 @@ class Config:
     """
     # 数据库配置
     DB_CONNECTION = os.getenv("DB_CONNECTION", "mysql")
-    DB_HOST = os.getenv("DB_HOST", "localhost")
+    DB_HOST = os.getenv("DB_HOST", "rm-bp1u3u9qdre6uw988po.mysql.rds.aliyuncs.com")
     DB_PORT = os.getenv("DB_PORT", "3306")
     DB_DATABASE = os.getenv("DB_DATABASE", "modelhub")
     DB_USERNAME = os.getenv("DB_USERNAME", "root")
@@ -20,7 +20,7 @@ class Config:
     from urllib.parse import quote_plus
 
     # 修改配置类中的连接字符串
-    password = os.getenv("DB_PASSWORD", "")
+    password = os.getenv("DB_PASSWORD", "ModelHub@135246")
     encoded_password = quote_plus(password)  # 编码特殊字符
 
     SQLALCHEMY_DATABASE_URI = f"{DB_CONNECTION}://{DB_USERNAME}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_DATABASE}"

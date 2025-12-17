@@ -50,6 +50,27 @@ def create_vector_db():
     else:
         document_similarity = 0.7
 
+    # 处理新字段
+    distance = data.get('distance', 'cosine')
+    metadata = data.get('metadata')
+    chunk_size = data.get('chunk_size', 1024)
+    chunk_overlap = data.get('chunk_overlap', 200)
+    topk = data.get('topk', 10)
+    
+    # 类型转换
+    try:
+        chunk_size = int(chunk_size) if chunk_size else 1024
+    except (ValueError, TypeError):
+        chunk_size = 1024
+    try:
+        chunk_overlap = int(chunk_overlap) if chunk_overlap else 200
+    except (ValueError, TypeError):
+        chunk_overlap = 200
+    try:
+        topk = int(topk) if topk else 10
+    except (ValueError, TypeError):
+        topk = 10
+
     try:
         # 异步操作需要在事件循环中运行
         loop = asyncio.new_event_loop()
@@ -59,7 +80,12 @@ def create_vector_db():
             name=data.get('name'),
             embedding_id=embedding_id,
             describe=data.get('describe'),
-            document_similarity=document_similarity
+            document_similarity=document_similarity,
+            distance=distance,
+            metadata=metadata,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            topk=topk
         ))
         loop.close()
 
@@ -97,9 +123,33 @@ def update_vector_db(vector_db_id):
         try:
             document_similarity = float(document_similarity_str)
         except ValueError:
-            document_similarity = 0.7
+            document_similarity = None
     else:
-        document_similarity = 0.7
+        document_similarity = None
+
+    # 处理新字段
+    distance = data.get('distance')
+    metadata = data.get('metadata')
+    chunk_size = data.get('chunk_size')
+    chunk_overlap = data.get('chunk_overlap')
+    topk = data.get('topk')
+    
+    # 类型转换
+    if chunk_size is not None:
+        try:
+            chunk_size = int(chunk_size)
+        except (ValueError, TypeError):
+            chunk_size = None
+    if chunk_overlap is not None:
+        try:
+            chunk_overlap = int(chunk_overlap)
+        except (ValueError, TypeError):
+            chunk_overlap = None
+    if topk is not None:
+        try:
+            topk = int(topk)
+        except (ValueError, TypeError):
+            topk = None
 
     try:
         vector_db = VectorService.update_vector_db(
@@ -107,7 +157,12 @@ def update_vector_db(vector_db_id):
             name=data.get('name'),
             embedding_id=data.get('embedding_id'),
             describe=data.get('describe'),
-            document_similarity=document_similarity
+            document_similarity=document_similarity,
+            distance=distance,
+            metadata=metadata,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            topk=topk
         )
         if vector_db:
             if isinstance(vector_db, dict):
@@ -145,12 +200,16 @@ def upload_file():
     print("Request headers:", request.headers)  # 打印请求头
     print("Request form data:", request.form)  # 打印表单数据
     print("Request files:", request.files)  # 打印文件数据
-    if 'file' not in request.files:
-        return ErrorResponse(400, "未提供文件").to_json()
-
-    files = request.files.getlist('file')
+    
+    # 支持 'file' 和 'files' 两种字段名（兼容单数和复数）
+    files = []
+    if 'file' in request.files:
+        files = request.files.getlist('file')
+    elif 'files' in request.files:
+        files = request.files.getlist('files')
+    
     if not files or all(file.filename == '' for file in files):
-        return ErrorResponse(400, "未选择文件").to_json()
+        return ErrorResponse(400, "未提供文件或未选择文件").to_json()
 
     describe = request.form.get('describe', '')
 
@@ -160,6 +219,7 @@ def upload_file():
 
     document_ids = []
     try:
+        # 串行处理文件，一个接一个
         for file in files:
             # 传递当前登录用户ID
             document_id = VectorService.upload_file(
@@ -235,11 +295,12 @@ from urllib.parse import quote
 @login_required
 def download_file(document_id):
     try:
+        # 临时存储模式下，文件在处理完成后已被删除
         # 获取完整文件路径和原始文件名
         file_path, original_name = VectorService.get_document_file(document_id)
 
         if not file_path or not original_name:
-            return ErrorResponse(404, "未找到该文件或文件不存在").to_json()
+            return ErrorResponse(404, "文件不存在（临时存储模式：文件在处理完成后已删除，仅保留向量数据）").to_json()
 
         # 对文件名进行URL编码（处理中文等特殊字符）
         safe_filename = quote(original_name)

@@ -20,6 +20,7 @@ from llama_index.core import (
     VectorStoreIndex,
     StorageContext, load_index_from_storage
 )
+from llama_index.core.node_parser import SimpleNodeParser
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from app.models.model_info import ModelInfo
 
@@ -41,14 +42,49 @@ class VectorService:
             logger.error("无法获取 ChromaDB 客户端")
             return False
 
+        # 获取向量数据库配置
+        vector_db = VectorMapper.get_vector_db(vector_db_id)
+        if not vector_db:
+            logger.error(f"未找到向量数据库: {vector_db_id}")
+            return False
+
         collection_name = f"vector_db_{vector_db_id}"
         retries = 0
 
+        # 准备集合配置
+        distance = vector_db.distance or 'cosine'
+        metadata = {}
+        if vector_db.collection_metadata:  # 使用collection_metadata字段
+            try:
+                import json
+                metadata = json.loads(vector_db.collection_metadata)
+                if not isinstance(metadata, dict):
+                    metadata = {}
+            except:
+                metadata = {}
+
         while retries < MAX_RETRIES:
             try:
-                # 尝试创建集合
-                client.create_collection(name=collection_name)
-                logger.info(f"成功创建集合: {collection_name}")
+                # 尝试创建集合，使用配置的distance和metadata
+                # ChromaDB的distance参数可以直接传递，或者通过metadata设置
+                collection_kwargs = {
+                    'name': collection_name,
+                }
+                
+                # 如果metadata不为空，添加metadata
+                if metadata:
+                    collection_kwargs['metadata'] = metadata
+                
+                # 尝试直接传递distance参数（如果ChromaDB支持）
+                try:
+                    collection = client.create_collection(**collection_kwargs)
+                    # 如果创建成功，尝试设置distance（某些版本可能需要通过其他方式设置）
+                    logger.info(f"成功创建集合: {collection_name}, distance: {distance}")
+                except TypeError:
+                    # 如果不支持distance参数，则只使用name和metadata
+                    collection = client.create_collection(name=collection_name, metadata=metadata or {})
+                    logger.info(f"成功创建集合: {collection_name} (使用默认distance)")
+                
                 return True
             except chromadb.errors.ChromaError as e:
                 # 如果集合已存在，则忽略错误
@@ -67,9 +103,13 @@ class VectorService:
         logger.error(f"无法创建集合 {collection_name}，达到最大重试次数")
         return False
     @staticmethod
-    async def create_vector_db(user_id, name, embedding_id, describe=None, document_similarity=0.7):
+    async def create_vector_db(user_id, name, embedding_id, describe=None, document_similarity=0.7,
+                              distance='cosine', metadata=None, chunk_size=1024, chunk_overlap=200, topk=10):
         """创建向量数据库并确保集合存在"""
-        vector_db = VectorMapper.create_vector_db(user_id, name, embedding_id, describe, document_similarity)
+        vector_db = VectorMapper.create_vector_db(
+            user_id, name, embedding_id, describe, document_similarity,
+            distance, metadata, chunk_size, chunk_overlap, topk
+        )
         if not vector_db or not vector_db.id:
             logger.error("创建向量数据库记录失败")
             return None
@@ -94,7 +134,31 @@ class VectorService:
             return True
         except (ValueError, chromadb.errors.CollectionNotFound):  # 修改异常类型
             try:
-                client.create_collection(name=collection_name)
+                # 获取向量数据库配置
+                vector_db = VectorMapper.get_vector_db(vector_db_id)
+                if vector_db:
+                    metadata = {}
+                    if vector_db.collection_metadata:  # 使用collection_metadata字段
+                        try:
+                            import json
+                            metadata = json.loads(vector_db.collection_metadata)
+                            if not isinstance(metadata, dict):
+                                metadata = {}
+                        except:
+                            metadata = {}
+                    
+                    collection_kwargs = {
+                        'name': collection_name,
+                    }
+                    if metadata:
+                        collection_kwargs['metadata'] = metadata
+                    
+                    try:
+                        client.create_collection(**collection_kwargs)
+                    except TypeError:
+                        client.create_collection(name=collection_name, metadata=metadata or {})
+                else:
+                    client.create_collection(name=collection_name)
                 logger.info(f"同步创建集合: {collection_name}")
                 return True
             except Exception as e:
@@ -141,8 +205,12 @@ class VectorService:
         return None
 
     @staticmethod
-    def update_vector_db(vector_db_id, name=None, embedding_id=None, describe=None, document_similarity=None):
-        return VectorMapper.update_vector_db(vector_db_id, name, embedding_id, describe, document_similarity)
+    def update_vector_db(vector_db_id, name=None, embedding_id=None, describe=None, document_similarity=None,
+                        distance=None, metadata=None, chunk_size=None, chunk_overlap=None, topk=None):
+        return VectorMapper.update_vector_db(
+            vector_db_id, name, embedding_id, describe, document_similarity,
+            distance, metadata, chunk_size, chunk_overlap, topk
+        )
 
     @staticmethod
     def delete_vector_db(vector_db_id):
@@ -259,8 +327,13 @@ class VectorService:
             vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
             storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
+            # 获取向量数据库配置
+            vector_db = VectorMapper.get_vector_db(vector_db_id)
+            if not vector_db:
+                raise Exception("向量数据库不存在")
+            
             # 初始化嵌入模型
-            model_info_id = VectorMapper.get_vector_db(vector_db_id).embedding_id
+            model_info_id = vector_db.embedding_id
             if not model_info_id:
                 raise Exception("模型配置ID为空")
             embedding_model = get_embedding(model_info_id)
@@ -268,14 +341,21 @@ class VectorService:
             # 读取并处理文件
             documents = SimpleDirectoryReader(input_files=[save_path]).load_data()
             logger.info(f"成功加载 {len(documents)} 个文档片段")
-            for doc in documents:
-                print(f"文档元数据: {doc.metadata}")  # 查看默认元数据字段
-
-            # 创建索引并存储
+            
+            # 使用配置的chunk_size和chunk_overlap创建节点解析器
+            chunk_size = vector_db.chunk_size or 1024
+            chunk_overlap = vector_db.chunk_overlap or 200
+            node_parser = SimpleNodeParser.from_defaults(
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap
+            )
+            
+            # 创建索引并存储，使用节点解析器
             index = VectorStoreIndex.from_documents(
                 documents=documents,
                 storage_context=storage_context,
-                embed_model=embedding_model
+                embed_model=embedding_model,
+                node_parser=node_parser
             )
             nodes = storage_context.docstore.docs
             for node_id, node in nodes.items():
@@ -302,6 +382,18 @@ class VectorService:
             db.session.add(document)
             db.session.commit()
             logger.info(f"文件信息已保存到 document 数据库，ID: {document.id}")
+            
+            # 向量化处理完成后，删除临时文件（改为临时存储逻辑）
+            if file_saved and os.path.exists(save_path):
+                try:
+                    os.remove(save_path)
+                    logger.info(f"向量化完成，已删除临时文件: {save_path}")
+                    # 更新文档记录，标记文件已删除
+                    document.save_path = None  # 或者设置为空字符串，表示文件已删除
+                    db.session.commit()
+                except Exception as delete_error:
+                    logger.warning(f"删除临时文件失败: {str(delete_error)}，但不影响向量数据")
+            
             return document.id  # 返回文档ID
 
         except Exception as e:
@@ -311,7 +403,7 @@ class VectorService:
             if file_saved and os.path.exists(save_path):
                 try:
                     os.remove(save_path)
-                    logger.info(f"已删除文件: {save_path}")
+                    logger.info(f"处理失败，已删除临时文件: {save_path}")
                 except Exception as delete_error:
                     logger.error(f"删除文件失败: {str(delete_error)}")
 
@@ -327,32 +419,36 @@ class VectorService:
             if not document:
                 return False
 
-            # 删除文件夹中的文件
-            file_path = document.save_path
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            # 临时存储逻辑：文件可能已经不存在，只删除向量数据
+            # 如果文件还存在（异常情况），也删除它
+            if document.save_path and os.path.exists(document.save_path):
+                try:
+                    os.remove(document.save_path)
+                    logger.info(f"删除残留文件: {document.save_path}")
+                except Exception as e:
+                    logger.warning(f"删除文件失败: {str(e)}")
 
-            # 删除数据库记录
-            db.session.delete(document)
-            db.session.commit()
-
-            # 删除向量集合中的相关数据（假设向量集合根据文件名或ID存储数据）
+            # 删除向量集合中的相关数据
             vector_db_id = document.vector_db_id
             client = get_chromadb_client()
             if client:
                 collection_name = f"vector_db_{vector_db_id}"
                 try:
                     collection = client.get_collection(name=collection_name)
-                    # 假设向量集合中使用文件名作为ID
+                    # 删除向量集合中与该文档相关的数据
                     collection.delete(where={"file_name": document.name})
-                    # collection.delete(ids=[document.name])
+                    logger.info(f"已删除向量集合中的数据: {document.name}")
                 except Exception as e:
-                    print(f"删除向量集合中的数据失败: {str(e)}")
+                    logger.error(f"删除向量集合中的数据失败: {str(e)}")
+
+            # 删除数据库记录
+            db.session.delete(document)
+            db.session.commit()
 
             return True
         except Exception as e:
             db.session.rollback()
-            print(f"删除文件失败: {str(e)}")
+            logger.error(f"删除文档失败: {str(e)}")
             return False
 
     @staticmethod
@@ -374,8 +470,18 @@ class VectorService:
             logger.error(f"获取用户向量数据库列表失败: {str(e)}")
             return []
     @staticmethod
-    def query_vectors(vector_db_id, query_text, n_results=10):
+    def query_vectors(vector_db_id, query_text, n_results=None):
         """查询向量数据库 (使用 LlamaIndex)"""
+        # 获取向量数据库配置
+        vector_db = VectorMapper.get_vector_db(vector_db_id)
+        if not vector_db:
+            logger.error(f"未找到向量数据库: {vector_db_id}")
+            return None
+            
+        # 使用配置的topk，如果没有传入n_results
+        if n_results is None:
+            n_results = vector_db.topk or 10
+        
         # 获取 ChromaDB 集合
         chroma_collection = VectorService.get_chroma_collection(vector_db_id)
         if not chroma_collection:
@@ -387,7 +493,7 @@ class VectorService:
             vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 
             # 初始化嵌入模型
-            model_info_id = VectorMapper.get_vector_db(vector_db_id).embedding_id
+            model_info_id = vector_db.embedding_id
             if not model_info_id:
                 raise Exception("模型配置ID为空")
             embedding_model = get_embedding(model_info_id)
@@ -398,11 +504,11 @@ class VectorService:
                 embed_model=embedding_model
             )
 
-            # 创建查询引擎
+            # 创建查询引擎，使用配置的topk
             retriever = index.as_retriever(similarity_top_k=n_results)
             nodes = retriever.retrieve(query_text)
 
-            document_similarity = VectorMapper.get_vector_db(vector_db_id).document_similarity
+            document_similarity = vector_db.document_similarity
 
             res = []
             for node in nodes:
@@ -433,11 +539,16 @@ class VectorService:
 
     @staticmethod
     def get_document_file(document_id):
-        """获取文档文件信息，包括文件路径和原始文件名"""
+        """获取文档文件信息（临时存储模式下，文件已删除，返回None）"""
         try:
             document = Document.query.get(document_id)
             if not document:
                 logger.error(f"未找到文档记录: {document_id}")
+                return None, None
+
+            # 临时存储逻辑：文件在处理完成后已被删除
+            if not document.save_path:
+                logger.warning(f"文档 {document_id} 的文件已删除（临时存储模式）")
                 return None, None
 
             file_path = document.save_path
@@ -447,9 +558,9 @@ class VectorService:
             if not os.path.isabs(file_path):
                 file_path = os.path.abspath(file_path)
 
-            # 检查文件是否存在
+            # 检查文件是否存在（可能已经被删除）
             if not os.path.isfile(file_path):
-                logger.error(f"文件不存在: {file_path}")
+                logger.warning(f"文件不存在: {file_path}（可能已被删除）")
                 return None, None
 
             return file_path, original_name

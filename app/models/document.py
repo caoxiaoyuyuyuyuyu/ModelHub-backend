@@ -9,7 +9,7 @@ class Document(db.Model):
     original_name = db.Column(db.String(255), unique=True, nullable=False)
     type = db.Column(db.String(64), nullable=False)
     size = db.Column(db.Integer, nullable=False)
-    save_path = db.Column(db.Text, nullable=False)
+    save_path = db.Column(db.Text, nullable=True)  # 临时存储模式下，文件处理完成后会被删除，所以允许为空
     describe = db.Column(db.String(255), nullable=True)
     upload_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     user = db.relationship('User', backref=db.backref('documents', lazy=True))
