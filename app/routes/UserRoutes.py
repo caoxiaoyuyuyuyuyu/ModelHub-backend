@@ -31,6 +31,7 @@ def register():
 
         # 直接使用异常中的错误信息
         error_info = getattr(e, 'args', [{}])[0]
+        print(error_info)
         code = error_info.get('code', 500)
         msg = error_info.get('msg', str(e))
         # 打印错误信息到控制台
