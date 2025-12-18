@@ -32,10 +32,10 @@ class OllamaModelMapper:
         except Exception as e:
             raise Exception(f"模型配置获取失败:{str(e)}")
 
-    # 根据 user_id 得到 用户model_config列表
+    # 根据 user_id 得到 用户model_config列表（按创建时间降序排序，最新创建的靠前）
     @staticmethod
     def get_model_config_by_user_id(user_id: int):
-        return OllamaModelConfig.query.filter_by(user_id=user_id).all()
+        return OllamaModelConfig.query.filter_by(user_id=user_id).order_by(OllamaModelConfig.create_at.desc()).all()
 
 
     # 创建一个新的model_config

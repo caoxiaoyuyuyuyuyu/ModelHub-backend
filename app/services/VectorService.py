@@ -545,7 +545,8 @@ class VectorService:
     @staticmethod
     def get_user_vector_dbs(user_id):
         try:
-            vector_dbs = VectorDb.query.filter_by(user_id=user_id).all()
+            # 按创建时间降序排序，最新创建的靠前
+            vector_dbs = VectorDb.query.filter_by(user_id=user_id).order_by(VectorDb.create_at.desc()).all()
             vector_db_list = []
             for vector_db in vector_dbs:
                 vector_db_dict = {
