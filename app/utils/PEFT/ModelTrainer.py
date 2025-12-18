@@ -55,11 +55,28 @@ class ModelTrainer:
         """Normalize a file path to handle mixed separators and ensure it's recognized as a local path."""
         if not path:
             return path
-        # Convert to Path object to normalize separators
-        normalized = Path(path).resolve()
-        # Convert back to string, using forward slashes for cross-platform compatibility
-        # or os.path.normpath for platform-specific normalization
-        return str(normalized)
+        path_str = str(path).strip()
+        
+        # Check if it's a Windows absolute path (starts with drive letter like D:)
+        if len(path_str) >= 2 and path_str[1] == ':':
+            # Windows absolute path - normalize separators using os.path.normpath
+            # This handles mixed separators correctly
+            normalized = os.path.normpath(path_str)
+            return normalized
+        
+        # Check if it's a Unix absolute path (starts with /)
+        if path_str.startswith('/'):
+            # Unix absolute path - normalize separators
+            normalized = os.path.normpath(path_str)
+            return normalized
+        
+        # Relative path - resolve it
+        try:
+            normalized = Path(path_str).resolve()
+            return str(normalized)
+        except (OSError, ValueError):
+            # If resolve fails, just normalize the path
+            return os.path.normpath(path_str)
     
     @staticmethod
     def load_model(model_path, bnb_config, peft_config):

@@ -2,9 +2,26 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 from pathlib import Path
 
+def _normalize_path(path):
+    """Normalize a file path to handle mixed separators."""
+    if not path:
+        return path
+    path_str = str(path).strip()
+    # Check if it's a Windows absolute path
+    if len(path_str) >= 2 and path_str[1] == ':':
+        return os.path.normpath(path_str)
+    # Check if it's a Unix absolute path
+    if path_str.startswith('/'):
+        return os.path.normpath(path_str)
+    # Relative path
+    try:
+        return str(Path(path_str).resolve())
+    except (OSError, ValueError):
+        return os.path.normpath(path_str)
+
 def chat_with_base(model_path, history):
     # Normalize path to handle mixed path separators
-    model_path = str(Path(model_path).resolve())
+    model_path = _normalize_path(model_path)
     
     tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
     model = AutoModelForCausalLM.from_pretrained(

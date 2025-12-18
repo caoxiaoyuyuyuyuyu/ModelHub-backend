@@ -21,6 +21,14 @@ def create_app(config_class=Config):
 
     # 初始化Socket.IO
     socketio.init_app(app)
+    
+    # 设置安全中间件以过滤扫描尝试
+    try:
+        from .middleware.security import setup_security_middleware
+        setup_security_middleware(app)
+    except ImportError:
+        # 如果中间件不存在，继续运行（向后兼容）
+        pass
 
     # 注册蓝图
     from .routes import user_bp, chat_bp

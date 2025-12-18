@@ -39,7 +39,21 @@ class FinetuningService:
         if not base_model_path:
             raise ValueError("无效的模型ID")
         # Normalize the model path to handle mixed path separators
-        base_model_path = str(Path(base_model_path).resolve())
+        path_str = str(base_model_path).strip()
+        # Use os.path.normpath which handles mixed separators correctly
+        # and preserves absolute paths
+        if len(path_str) >= 2 and path_str[1] == ':':
+            # Windows absolute path - normalize separators
+            base_model_path = os.path.normpath(path_str)
+        elif path_str.startswith('/'):
+            # Unix absolute path - normalize separators
+            base_model_path = os.path.normpath(path_str)
+        else:
+            # Relative path - try to resolve it
+            try:
+                base_model_path = str(Path(base_model_path).resolve())
+            except (OSError, ValueError):
+                base_model_path = os.path.normpath(path_str)
         finetuning_dir = current_app.config.get('FINETUNING_DIR')
         if not finetuning_dir:
             raise ValueError("Finetuning directory not configured")

@@ -24,10 +24,27 @@ print(torch.version.cuda)  # 显示CUDA版本
 print(torch.__version__)  # 显示PyTorch版本
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+def _normalize_path(path):
+    """Normalize a file path to handle mixed separators."""
+    if not path:
+        return path
+    path_str = str(path).strip()
+    # Check if it's a Windows absolute path
+    if len(path_str) >= 2 and path_str[1] == ':':
+        return os.path.normpath(path_str)
+    # Check if it's a Unix absolute path
+    if path_str.startswith('/'):
+        return os.path.normpath(path_str)
+    # Relative path
+    try:
+        return str(Path(path_str).resolve())
+    except (OSError, ValueError):
+        return os.path.normpath(path_str)
+
 def chat_with_finetuned(model_path, peft_model_path, load_in_4bit, history):
     # Normalize paths to handle mixed path separators
-    model_path = str(Path(model_path).resolve())
-    peft_model_path = str(Path(peft_model_path).resolve())
+    model_path = _normalize_path(model_path)
+    peft_model_path = _normalize_path(peft_model_path)
     
     tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
     tokenizer.pad_token = tokenizer.eos_token
