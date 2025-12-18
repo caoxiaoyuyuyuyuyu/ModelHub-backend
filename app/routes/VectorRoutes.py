@@ -257,20 +257,6 @@ def get_user_vector_db_list():
     except Exception as e:
         return handle_exception(e)
 
-@vector_bp.route('/document/<int:document_id>', methods=['GET'])
-@login_required
-def get_document(document_id):
-    try:
-        document = Document.query.get(document_id)
-        if document:
-            return SuccessResponse(
-                "查询成功",
-                document.to_dict()
-            ).to_json()
-        return ErrorResponse(404, "未找到该文件").to_json()
-    except Exception as e:
-        return handle_exception(e)
-
 @vector_bp.route('/documents/<int:vector_db_id>', methods=['GET'])
 @login_required
 def get_documents(vector_db_id):
@@ -292,6 +278,20 @@ def get_documents(vector_db_id):
                 result
             ).to_json()
         return ErrorResponse(404, "未找到该向量数据库").to_json()
+    except Exception as e:
+        return handle_exception(e)
+
+@vector_bp.route('/document/<int:document_id>', methods=['GET'])
+@login_required
+def get_document(document_id):
+    try:
+        document = Document.query.get(document_id)
+        if document:
+            return SuccessResponse(
+                "查询成功",
+                document.to_dict()
+            ).to_json()
+        return ErrorResponse(404, "未找到该文件").to_json()
     except Exception as e:
         return handle_exception(e)
 
