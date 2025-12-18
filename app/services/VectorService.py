@@ -273,7 +273,7 @@ class VectorService:
 
     @staticmethod
     def get_chroma_collection(vector_db_id):
-        """获取 ChromaDB 集合对象"""
+        """获取 ChromaDB 集合对象，如果不存在则创建"""
         client = get_chromadb_client()
         if not client:
             logger.error("无法获取 ChromaDB 客户端")
@@ -281,8 +281,59 @@ class VectorService:
 
         collection_name = f"vector_db_{vector_db_id}"
         try:
+            # 尝试获取集合
             collection = client.get_collection(name=collection_name)
             return collection
+        except (ValueError, chromadb.errors.CollectionNotFound) as e:
+            # 集合不存在，尝试创建
+            logger.info(f"集合 {collection_name} 不存在，尝试创建...")
+            try:
+                # 获取向量数据库配置
+                vector_db = VectorMapper.get_vector_db(vector_db_id)
+                if vector_db:
+                    distance = vector_db.distance or 'cosine'
+                    metadata = {}
+                    if vector_db.collection_metadata:
+                        try:
+                            import json
+                            metadata = json.loads(vector_db.collection_metadata)
+                            if not isinstance(metadata, dict):
+                                metadata = {}
+                        except:
+                            metadata = {}
+                    
+                    # 创建集合
+                    try:
+                        collection = client.create_collection(
+                            name=collection_name,
+                            metadata=metadata or {}
+                        )
+                        logger.info(f"成功创建集合: {collection_name}")
+                        return collection
+                    except chromadb.errors.ChromaError as create_error:
+                        # 如果集合已存在（并发创建），尝试再次获取
+                        if "already exists" in str(create_error).lower():
+                            try:
+                                collection = client.get_collection(name=collection_name)
+                                logger.info(f"集合已存在，获取成功: {collection_name}")
+                                return collection
+                            except Exception as get_error:
+                                logger.error(f"获取已存在的集合失败: {str(get_error)}")
+                                return None
+                        else:
+                            logger.error(f"创建集合失败: {str(create_error)}")
+                            return None
+                    except Exception as create_error:
+                        logger.error(f"创建集合时发生异常: {str(create_error)}")
+                        return None
+                else:
+                    # 如果没有配置，使用默认配置创建
+                    collection = client.create_collection(name=collection_name)
+                    logger.info(f"使用默认配置创建集合: {collection_name}")
+                    return collection
+            except Exception as create_error:
+                logger.error(f"创建集合时发生错误: {str(create_error)}")
+                return None
         except Exception as e:
             logger.error(f"获取集合失败: {str(e)}")
             return None
