@@ -132,7 +132,7 @@ class VectorService:
         try:
             client.get_collection(name=collection_name)
             return True
-        except (ValueError, chromadb.errors.CollectionNotFound):  # 修改异常类型
+        except (ValueError, chromadb.errors.NotFoundError):  # 修改异常类型
             try:
                 # 获取向量数据库配置
                 vector_db = VectorMapper.get_vector_db(vector_db_id)
@@ -284,7 +284,7 @@ class VectorService:
             # 尝试获取集合
             collection = client.get_collection(name=collection_name)
             return collection
-        except (ValueError, chromadb.errors.CollectionNotFound) as e:
+        except (ValueError, chromadb.errors.NotFoundError) as e:
             # 集合不存在，尝试创建
             logger.info(f"集合 {collection_name} 不存在，尝试创建...")
             try:
