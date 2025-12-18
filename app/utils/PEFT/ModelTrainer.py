@@ -1,4 +1,6 @@
 import json
+import os
+from pathlib import Path
 from datasets import Dataset
 from transformers import (
     AutoModelForCausalLM,
@@ -49,7 +51,21 @@ class ProgressCallback(TrainerCallback):
 
 class ModelTrainer:
     @staticmethod
+    def _normalize_path(path):
+        """Normalize a file path to handle mixed separators and ensure it's recognized as a local path."""
+        if not path:
+            return path
+        # Convert to Path object to normalize separators
+        normalized = Path(path).resolve()
+        # Convert back to string, using forward slashes for cross-platform compatibility
+        # or os.path.normpath for platform-specific normalization
+        return str(normalized)
+    
+    @staticmethod
     def load_model(model_path, bnb_config, peft_config):
+        # Normalize the model path to handle mixed path separators
+        model_path = ModelTrainer._normalize_path(model_path)
+        
         # 加载模型
         model_kwargs = {
             "device_map": "auto",
@@ -62,6 +78,7 @@ class ModelTrainer:
         
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
+            local_files_only=True,  # Force local file loading
             **model_kwargs
         )
         
@@ -74,7 +91,9 @@ class ModelTrainer:
         return model
     @staticmethod
     def load_tokenizer(model_path):
-        tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
+        # Normalize the model path to handle mixed path separators
+        model_path = ModelTrainer._normalize_path(model_path)
+        tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True, local_files_only=True)
         tokenizer.pad_token = tokenizer.eos_token
         # tokenizer.padding_side = "right"
         return tokenizer
@@ -167,13 +186,18 @@ def finetune(base_model_path = r"D:\Projects\PEFT\Qwen\Qwen1.5-1.8B-Chat",
     load_in_4bit = kwargs.get("load_in_4bit", True)
     
     # Check if bitsandbytes is available when load_in_4bit is requested
+    # If not available, automatically fall back to non-quantized training
     if load_in_4bit and not BITSANDBYTES_AVAILABLE:
-        raise ImportError(
-            "bitsandbytes is required for 4-bit quantization but is not available. "
-            "This may be due to missing package metadata. "
-            "To fix: pip uninstall bitsandbytes && pip install bitsandbytes "
-            "Alternatively, set load_in_4bit=False to disable quantization."
+        import warnings
+        warnings.warn(
+            "bitsandbytes is not available. Falling back to non-quantized training. "
+            "To enable 4-bit quantization, please reinstall bitsandbytes: "
+            "pip uninstall bitsandbytes && pip install bitsandbytes",
+            UserWarning
         )
+        print("WARNING: bitsandbytes is not available. Disabling 4-bit quantization.")
+        print("Training will proceed without quantization (may require more memory).")
+        load_in_4bit = False
     
     if load_in_4bit and BITSANDBYTES_AVAILABLE:
         bnb_config = BitsAndBytesConfig(
@@ -184,6 +208,14 @@ def finetune(base_model_path = r"D:\Projects\PEFT\Qwen\Qwen1.5-1.8B-Chat",
         )
     else:
         bnb_config = None
+    
+    # Adjust optimizer based on bitsandbytes availability
+    # paged_adamw_8bit requires bitsandbytes, so fall back to adamw_torch if unavailable
+    optim_name = kwargs.get("optim", "paged_adamw_8bit")
+    if optim_name == "paged_adamw_8bit" and not BITSANDBYTES_AVAILABLE:
+        optim_name = "adamw_torch"
+        print("WARNING: paged_adamw_8bit requires bitsandbytes. Falling back to adamw_torch optimizer.")
+    
     if kwargs.get("use_lora", True):
         peft_config = LoraConfig(
             r=kwargs.get("lora_r", 8),
@@ -204,7 +236,7 @@ def finetune(base_model_path = r"D:\Projects\PEFT\Qwen\Qwen1.5-1.8B-Chat",
         logging_steps=kwargs.get("logging_steps", 10),
         save_strategy=kwargs.get("save_strategy", "epoch"),
         fp16=kwargs.get("fp16", True),
-        optim=kwargs.get("optim", "paged_adamw_8bit")
+        optim=optim_name
     )
     # 如果外部传入了callbacks，使用外部的callbacks
     if callbacks is None:

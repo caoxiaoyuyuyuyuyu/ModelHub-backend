@@ -1,4 +1,6 @@
 import torch
+import os
+from pathlib import Path
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 
@@ -23,7 +25,11 @@ print(torch.__version__)  # 显示PyTorch版本
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 def chat_with_finetuned(model_path, peft_model_path, load_in_4bit, history):
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    # Normalize paths to handle mixed path separators
+    model_path = str(Path(model_path).resolve())
+    peft_model_path = str(Path(peft_model_path).resolve())
+    
+    tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
@@ -37,7 +43,8 @@ def chat_with_finetuned(model_path, peft_model_path, load_in_4bit, history):
         )
     
     model_kwargs = {
-        "device_map": "auto"
+        "device_map": "auto",
+        "local_files_only": True
     }
     
     if load_in_4bit and BITSANDBYTES_AVAILABLE:

@@ -1,12 +1,17 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
+from pathlib import Path
 
 def chat_with_base(model_path, history):
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    # Normalize path to handle mixed path separators
+    model_path = str(Path(model_path).resolve())
+    
+    tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         device_map="auto",  # 自动选择 GPU 或 CPU
         torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+        local_files_only=True,
     )
     if isinstance(history, str):
         history = [

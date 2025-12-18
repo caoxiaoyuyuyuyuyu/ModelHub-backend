@@ -1,5 +1,6 @@
 # app/services/FinetuningService.py
 import os
+from pathlib import Path
 
 from flask import current_app, send_file
 from scipy.stats import describe
@@ -37,6 +38,8 @@ class FinetuningService:
         base_model_path = PreFinetuningModel.query.get(data.get('base_model_id')).path
         if not base_model_path:
             raise ValueError("无效的模型ID")
+        # Normalize the model path to handle mixed path separators
+        base_model_path = str(Path(base_model_path).resolve())
         finetuning_dir = current_app.config.get('FINETUNING_DIR')
         if not finetuning_dir:
             raise ValueError("Finetuning directory not configured")
