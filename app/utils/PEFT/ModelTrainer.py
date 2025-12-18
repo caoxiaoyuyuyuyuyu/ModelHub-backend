@@ -4,12 +4,27 @@ from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     TrainingArguments,
-    DataCollatorForLanguageModeling, BitsAndBytesConfig, Trainer, TrainerCallback
+    DataCollatorForLanguageModeling, Trainer, TrainerCallback
 )
 from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
 import torch
 
 from app.utils.PEFT.DataLoader import DataLoader
+
+# Check if bitsandbytes is available
+try:
+    import bitsandbytes as bnb
+    from transformers import BitsAndBytesConfig
+    BITSANDBYTES_AVAILABLE = True
+except (ImportError, ModuleNotFoundError, Exception) as e:
+    BITSANDBYTES_AVAILABLE = False
+    BitsAndBytesConfig = None
+    error_msg = str(e)
+    if "metadata" in error_msg.lower() or "package" in error_msg.lower():
+        print(f"Warning: bitsandbytes package metadata is missing or corrupted: {e}")
+        print("To fix this, try reinstalling bitsandbytes: pip uninstall bitsandbytes && pip install bitsandbytes")
+    else:
+        print(f"Warning: bitsandbytes is not available: {e}")
 
 class ProgressCallback(TrainerCallback):
     def __init__(self, log_path, socketio):
@@ -36,13 +51,24 @@ class ModelTrainer:
     @staticmethod
     def load_model(model_path, bnb_config, peft_config):
         # 加载模型
+        model_kwargs = {
+            "device_map": "auto",
+            "torch_dtype": torch.bfloat16
+        }
+        
+        # Only add quantization_config if bnb_config is provided
+        if bnb_config is not None:
+            model_kwargs["quantization_config"] = bnb_config
+        
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            quantization_config=bnb_config,
-            device_map="auto",
-            torch_dtype=torch.bfloat16
+            **model_kwargs
         )
-        model = prepare_model_for_kbit_training(model)
+        
+        # Only prepare for kbit training if quantization is enabled
+        if bnb_config is not None:
+            model = prepare_model_for_kbit_training(model)
+        
         if peft_config:
             model = get_peft_model(model, peft_config)
         return model
@@ -138,12 +164,26 @@ def finetune(base_model_path = r"D:\Projects\PEFT\Qwen\Qwen1.5-1.8B-Chat",
              log_path = "./training_logs.json", socketio=None, callbacks=None, **kwargs):
     dataset = DataLoader.load_data(file_path, data_type)
     # 配置4-bit量化和LoRA
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=kwargs.get("load_in_4bit", True),
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16,
-        # bnb_4bit_use_double_quant=True,
-    )
+    load_in_4bit = kwargs.get("load_in_4bit", True)
+    
+    # Check if bitsandbytes is available when load_in_4bit is requested
+    if load_in_4bit and not BITSANDBYTES_AVAILABLE:
+        raise ImportError(
+            "bitsandbytes is required for 4-bit quantization but is not available. "
+            "This may be due to missing package metadata. "
+            "To fix: pip uninstall bitsandbytes && pip install bitsandbytes "
+            "Alternatively, set load_in_4bit=False to disable quantization."
+        )
+    
+    if load_in_4bit and BITSANDBYTES_AVAILABLE:
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            # bnb_4bit_use_double_quant=True,
+        )
+    else:
+        bnb_config = None
     if kwargs.get("use_lora", True):
         peft_config = LoraConfig(
             r=kwargs.get("lora_r", 8),

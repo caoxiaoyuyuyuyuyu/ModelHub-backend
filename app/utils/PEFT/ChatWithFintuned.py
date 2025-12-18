@@ -1,27 +1,56 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
-from transformers import BitsAndBytesConfig
 
+# Check if bitsandbytes is available
+try:
+    import bitsandbytes as bnb
+    from transformers import BitsAndBytesConfig
+    BITSANDBYTES_AVAILABLE = True
+except (ImportError, ModuleNotFoundError, Exception) as e:
+    BITSANDBYTES_AVAILABLE = False
+    BitsAndBytesConfig = None
+    error_msg = str(e)
+    if "metadata" in error_msg.lower() or "package" in error_msg.lower():
+        print(f"Warning: bitsandbytes package metadata is missing or corrupted: {e}")
+        print("To fix this, try reinstalling bitsandbytes: pip uninstall bitsandbytes && pip install bitsandbytes")
+    else:
+        print(f"Warning: bitsandbytes is not available: {e}")
 
 print(torch.cuda.is_available())  # 应该返回True
 print(torch.version.cuda)  # 显示CUDA版本
 print(torch.__version__)  # 显示PyTorch版本
 device = "cuda" if torch.cuda.is_available() else "cpu"
+
 def chat_with_finetuned(model_path, peft_model_path, load_in_4bit, history):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=load_in_4bit,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16
-    )
+    # Check if bitsandbytes is available when load_in_4bit is requested
+    if load_in_4bit and not BITSANDBYTES_AVAILABLE:
+        raise ImportError(
+            "bitsandbytes is required for 4-bit quantization but is not available. "
+            "This may be due to missing package metadata. "
+            "To fix: pip uninstall bitsandbytes && pip install bitsandbytes "
+            "Alternatively, set load_in_4bit=False to disable quantization."
+        )
+    
+    model_kwargs = {
+        "device_map": "auto"
+    }
+    
+    if load_in_4bit and BITSANDBYTES_AVAILABLE:
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16
+        )
+        model_kwargs["quantization_config"] = bnb_config
+    
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
-        quantization_config=bnb_config,
-        device_map="auto"
+        **model_kwargs
     )
 
     # 然后加载LoRA
