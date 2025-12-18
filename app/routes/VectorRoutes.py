@@ -271,6 +271,30 @@ def get_document(document_id):
     except Exception as e:
         return handle_exception(e)
 
+@vector_bp.route('/documents/<int:vector_db_id>', methods=['GET'])
+@login_required
+def get_documents(vector_db_id):
+    """获取向量数据库的文档列表（分页）"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 20, type=int)
+        
+        # 验证参数
+        if page < 1:
+            page = 1
+        if page_size < 1 or page_size > 100:
+            page_size = 20
+        
+        result = VectorService.get_documents_paginated(vector_db_id, page, page_size)
+        if result:
+            return SuccessResponse(
+                "查询成功",
+                result
+            ).to_json()
+        return ErrorResponse(404, "未找到该向量数据库").to_json()
+    except Exception as e:
+        return handle_exception(e)
+
 @vector_bp.route('/connect/<int:vector_id>', methods=['GET'])
 @login_required
 def connect_vector(vector_id):

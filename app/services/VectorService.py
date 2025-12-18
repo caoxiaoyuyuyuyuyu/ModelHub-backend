@@ -180,36 +180,52 @@ class VectorService:
         vector_db = VectorMapper.get_vector_db(vector_db_id)
         if vector_db:
             vector_db_dict = vector_db.to_dict()
-            # 确保 model_configs 和 documents 字段包含前端所需的所有字段
-            model_configs = []
-            for config in vector_db.model_configs:
-                config_dict = {
-                    'id': config.id,
-                    'name': config.name,
-                    'describe': config.describe,
-                    'created_at': config.create_at.strftime('%Y-%m-%d %H:%M:%S') if config.create_at else None,
-                    'updated_at': config.update_at.strftime('%Y-%m-%d %H:%M:%S') if config.update_at else None
-                }
-                model_configs.append(config_dict)
-
-            documents = []
-            for doc in vector_db.stored_documents:
-                doc_dict = {
-                    'id': doc.id,
-                    'name': doc.name,
-                    'original_name': doc.original_name,
-                    'type': doc.type,
-                    'size': doc.size,
-                    'save_path': doc.save_path,
-                    'describe': doc.describe,
-                    'upload_at': doc.upload_at.strftime('%Y-%m-%d %H:%M:%S') if doc.upload_at else None
-                }
-                documents.append(doc_dict)
-
-            vector_db_dict['model_configs'] = model_configs
-            vector_db_dict['documents'] = documents
+            # 添加日志，查看文档数量和详情
+            documents_count = len(vector_db_dict.get('documents', []))
+            logger.info(f"获取向量数据库 {vector_db_id} 的文档列表，共 {documents_count} 个文档")
+            # 记录每个文档的 save_path 状态（用于调试）
+            for doc in vector_db_dict.get('documents', []):
+                logger.debug(f"文档 ID: {doc.get('id')}, 名称: {doc.get('original_name')}, save_path: {doc.get('save_path')}")
+            # 确保返回所有文档，不过滤 save_path 为空的文档
+            # to_dict() 已经包含了所有文档，不需要额外处理
             return vector_db_dict
         return None
+
+    @staticmethod
+    def get_documents_paginated(vector_db_id, page=1, page_size=20):
+        """获取向量数据库的文档列表（分页）"""
+        vector_db = VectorMapper.get_vector_db(vector_db_id)
+        if not vector_db:
+            return None
+        
+        # 查询文档总数
+        total = Document.query.filter_by(vector_db_id=vector_db_id).count()
+        
+        # 分页查询文档
+        offset = (page - 1) * page_size
+        documents = Document.query.filter_by(vector_db_id=vector_db_id)\
+            .order_by(Document.upload_at.desc())\
+            .offset(offset)\
+            .limit(page_size)\
+            .all()
+        
+        # 转换为字典列表
+        documents_list = [doc.to_dict() for doc in documents]
+        
+        # 计算总页数
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+        
+        logger.info(f"获取向量数据库 {vector_db_id} 的文档列表，页码: {page}, 每页: {page_size}, 总数: {total}, 当前页文档数: {len(documents_list)}")
+        
+        return {
+            'documents': documents_list,
+            'pagination': {
+                'page': page,
+                'page_size': page_size,
+                'total': total,
+                'total_pages': total_pages
+            }
+        }
 
     @staticmethod
     def update_vector_db(vector_db_id, name=None, embedding_id=None, describe=None, document_similarity=None,
@@ -415,13 +431,16 @@ class VectorService:
             )
             
             # 创建索引并存储，使用节点解析器
+            logger.info(f"开始创建向量索引，文档数量: {len(documents)}")
             index = VectorStoreIndex.from_documents(
                 documents=documents,
                 storage_context=storage_context,
                 embed_model=embedding_model,
                 node_parser=node_parser
             )
+            logger.info("向量索引创建完成")
             nodes = storage_context.docstore.docs
+            logger.info(f"生成的节点数量: {len(nodes)}")
             for node_id, node in nodes.items():
                 print(f"Node ID: {node_id}")
                 print(f"Content: {node.text}")  # 文本内容
@@ -429,23 +448,31 @@ class VectorService:
                 print("---")
 
             # 3. 保存文档信息到数据库
+            logger.info("开始保存文档信息到数据库")
             file_extension = os.path.splitext(filename)[1]
             file_type = file_extension[1:] if file_extension else "unknown"
+            
+            # 获取文件大小（如果文件已被删除，使用之前保存的大小）
+            try:
+                file_size = os.path.getsize(save_path) if os.path.exists(save_path) else 0
+            except:
+                file_size = 0
 
+            logger.info(f"准备保存文档信息到数据库: {filename}, 类型: {file_type}, 大小: {file_size}")
             document = Document(
                 user_id=user_id,  # 使用传入的用户ID
                 vector_db_id=vector_db_id,
                 name=unique_filename,
-                describe=describe,
+                describe=describe if describe else None,  # 确保空字符串转为None
                 original_name=filename,
                 type=file_type,
-                size=os.path.getsize(save_path),
+                size=file_size,
                 save_path=save_path,
             )
 
             db.session.add(document)
             db.session.commit()
-            logger.info(f"文件信息已保存到 document 数据库，ID: {document.id}")
+            logger.info(f"文件信息已保存到 document 数据库，ID: {document.id}, 文档名称: {document.original_name}")
             
             # 向量化处理完成后，删除临时文件（改为临时存储逻辑）
             if file_saved and os.path.exists(save_path):
