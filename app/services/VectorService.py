@@ -81,8 +81,11 @@ class VectorService:
                     # 如果创建成功，尝试设置distance（某些版本可能需要通过其他方式设置）
                     logger.info(f"成功创建集合: {collection_name}, distance: {distance}")
                 except TypeError:
-                    # 如果不支持distance参数，则只使用name和metadata
-                    collection = client.create_collection(name=collection_name, metadata=metadata or {})
+                    # 如果不支持distance参数，则只使用name，只有当metadata不为空时才传递
+                    if metadata:
+                        collection = client.create_collection(name=collection_name, metadata=metadata)
+                    else:
+                        collection = client.create_collection(name=collection_name)
                     logger.info(f"成功创建集合: {collection_name} (使用默认distance)")
                 
                 return True
@@ -156,7 +159,11 @@ class VectorService:
                     try:
                         client.create_collection(**collection_kwargs)
                     except TypeError:
-                        client.create_collection(name=collection_name, metadata=metadata or {})
+                        # 只有当metadata不为空时才传递metadata参数
+                        if metadata:
+                            client.create_collection(name=collection_name, metadata=metadata)
+                        else:
+                            client.create_collection(name=collection_name)
                 else:
                     client.create_collection(name=collection_name)
                 logger.info(f"同步创建集合: {collection_name}")
@@ -304,10 +311,16 @@ class VectorService:
                     
                     # 创建集合
                     try:
-                        collection = client.create_collection(
-                            name=collection_name,
-                            metadata=metadata or {}
-                        )
+                        # 只有当 metadata 不为空时才传递 metadata 参数
+                        if metadata:
+                            collection = client.create_collection(
+                                name=collection_name,
+                                metadata=metadata
+                            )
+                        else:
+                            collection = client.create_collection(
+                                name=collection_name
+                            )
                         logger.info(f"成功创建集合: {collection_name}")
                         return collection
                     except chromadb.errors.ChromaError as create_error:

@@ -211,7 +211,7 @@ def upload_file():
     if not files or all(file.filename == '' for file in files):
         return ErrorResponse(400, "未提供文件或未选择文件").to_json()
 
-    describe = request.form.get('describe', '')
+    describe = request.form.get('describe', '').strip() or None  # 允许为空，空字符串转为None
 
     vector_db_id = request.form.get('vector_db_id')
     if not vector_db_id:
