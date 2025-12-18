@@ -31,7 +31,7 @@ logger = logging.getLogger("VectorService")
 MAX_RETRIES = 5
 RETRY_DELAY = 2
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB文件大小限制
-BASE_DOCS_DIR = "data\\vector_docs\\"  # 文档存储基础目录
+BASE_DOCS_DIR = os.path.join("data", "vector_docs")  # 文档存储基础目录（跨平台路径）
 
 
 class VectorService:
